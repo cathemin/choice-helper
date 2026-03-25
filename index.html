@@ -18,7 +18,26 @@
         aria-label="输入你的纠结"
       ></textarea>
       <button id="tryBtn" type="button">试试看</button>
-      <p id="result" class="result" aria-live="polite"></p>
+      <p id="status" class="status" aria-live="polite" role="status"></p>
+
+      <section id="resultArea" class="result-area" hidden>
+        <div class="result-grid">
+          <article class="card-panel">
+            <h3 class="card-title">A 的理由</h3>
+            <div id="reasonA" class="card-content"></div>
+          </article>
+
+          <article class="card-panel">
+            <h3 class="card-title">B 的理由</h3>
+            <div id="reasonB" class="card-content"></div>
+          </article>
+
+          <article class="card-panel span-all">
+            <h3 class="card-title">我的倾向</h3>
+            <div id="preference" class="card-content"></div>
+          </article>
+        </div>
+      </section>
     </main>
 
     <script src="script.js"></script>

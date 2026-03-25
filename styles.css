@@ -67,14 +67,53 @@ button:hover {
   min-height: 1.4em; /* 防止按钮点击前布局跳动 */
 }
 
-.result.card {
-  font-weight: 500;
+.status {
+  margin: 12px auto 0;
+  max-width: 520px;
+  min-height: 1.4em; /* 避免提示出现/消失造成抖动 */
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.result-area {
+  margin-top: 16px;
+}
+
+.result-grid {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .result-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.card-panel {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(17, 24, 39, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(17, 24, 39, 0.05);
   padding: 14px 16px;
   text-align: left;
+}
+
+.card-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: #111827;
+}
+
+.card-content {
   white-space: pre-wrap;
   word-break: break-word;
+  color: #1f2937;
+  line-height: 1.65;
+}
+
+.span-all {
+  grid-column: 1 / -1;
 }
