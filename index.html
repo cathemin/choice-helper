@@ -3,38 +3,44 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>帮我选一下</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>让小猫帮你决定</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="container">
-      <h1>帮我选一下</h1>
-      <p class="description">这是一个最简单的网页项目示例，点击按钮看看会发生什么。</p>
+    <main class="shell">
+      <header class="brand">
+        <h1 class="title">
+          <span class="paw" aria-hidden="true">🐾</span>
+          让小猫帮你决定
+        </h1>
+        <p class="subtitle">把你的纠结告诉小猫，它会帮你做出选择。</p>
+      </header>
+
       <textarea
         id="confusionInput"
-        class="input"
         rows="4"
-        placeholder="写下你的纠结，比如：选A还是选B？"
+        placeholder="写下你的纠结，比如：我要不要选A还是选B？"
         aria-label="输入你的纠结"
       ></textarea>
-      <button id="tryBtn" type="button">试试看</button>
+
+      <button id="tryBtn" type="button">让小猫看看</button>
       <p id="status" class="status" aria-live="polite" role="status"></p>
 
       <section id="resultArea" class="result-area" hidden>
         <div class="result-grid">
-          <article class="card-panel">
-            <h3 class="card-title">A 的理由</h3>
+          <article class="card">
+            <h3 class="card-title">这边的理由</h3>
             <div id="reasonA" class="card-content"></div>
           </article>
 
-          <article class="card-panel">
-            <h3 class="card-title">B 的理由</h3>
+          <article class="card">
+            <h3 class="card-title">那边的理由</h3>
             <div id="reasonB" class="card-content"></div>
           </article>
 
-          <article class="card-panel span-all">
-            <h3 class="card-title">我的倾向</h3>
-            <div id="preference" class="card-content"></div>
+          <article class="card span-all">
+            <h3 class="card-title">小猫的偏向</h3>
+            <div id="leaning" class="card-content"></div>
           </article>
         </div>
       </section>
