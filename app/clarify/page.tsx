@@ -14,6 +14,7 @@ export default function ClarifyPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
+  const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
   const handleClarify = () => {
     if (!text.trim()) return
@@ -61,7 +62,7 @@ export default function ClarifyPage() {
           </h1>
           <p
             className="text-muted-foreground mt-4 text-lg"
-            style={{ fontFamily: titleFont }}
+            style={{ fontFamily: bodyFont ?? titleFont }}
           >
             {t("把一团纠结整理成两个方向", "Sort a tangled mess into two directions")}
           </p>
@@ -78,6 +79,7 @@ export default function ClarifyPage() {
             )}
             aria-label={t("输入你的纠结", "Enter your dilemma")}
             className="min-h-[180px] border-2 border-foreground bg-card text-foreground placeholder:text-muted-foreground focus:shadow-[4px_4px_0_0_var(--foreground)] transition-shadow resize-none text-base p-6"
+            style={{ fontFamily: bodyFont }}
           />
         </div>
 
@@ -117,7 +119,7 @@ export default function ClarifyPage() {
 
             {/* Continue to Decide */}
             <div className="text-center pt-8 border-t-2 border-muted">
-              <p className="text-muted-foreground mb-4 text-sm">
+              <p className="text-muted-foreground mb-4 text-sm" style={{ fontFamily: bodyFont }}>
                 {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let Decison Cat help you decide")}
               </p>
               <Link href="/decide">

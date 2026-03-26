@@ -14,6 +14,7 @@ export default function DecidePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
+  const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -97,7 +98,7 @@ export default function DecidePage() {
           </h1>
           <p
             className="text-muted-foreground mt-4 text-lg"
-            style={{ fontFamily: titleFont }}
+            style={{ fontFamily: bodyFont ?? titleFont }}
           >
             {t(
               "把你的纠结告诉小猫，它会帮你做出选择。",
@@ -117,6 +118,7 @@ export default function DecidePage() {
             )}
             aria-label={t("输入你的纠结", "Enter your dilemma")}
             className="min-h-[160px] border-2 border-foreground bg-card text-foreground placeholder:text-muted-foreground focus:shadow-[4px_4px_0_0_var(--foreground)] transition-shadow resize-none text-base p-6"
+            style={{ fontFamily: bodyFont }}
           />
         </div>
 
@@ -139,7 +141,7 @@ export default function DecidePage() {
           </div>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground min-h-6">{statusMessage}</p>
+        <p className="text-center text-sm text-muted-foreground min-h-6" style={{ fontFamily: bodyFont }}>{statusMessage}</p>
 
         {/* Result Cards */}
         {results.length > 0 && (

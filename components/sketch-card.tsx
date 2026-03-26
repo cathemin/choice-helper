@@ -12,6 +12,7 @@ interface SketchCardProps {
 export function SketchCard({ title, content, rotation = "0" }: SketchCardProps) {
   const { language } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
+  const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
   return (
     <div 
@@ -22,7 +23,7 @@ export function SketchCard({ title, content, rotation = "0" }: SketchCardProps) 
         <PawPrint className="w-6 h-6 flex-shrink-0 mt-1" />
         <div>
           <h3 className="text-xl font-bold mb-2" style={{ fontFamily: titleFont }}>{title}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">{content}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: bodyFont }}>{content}</p>
         </div>
       </div>
     </div>

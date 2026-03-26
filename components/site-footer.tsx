@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/language-context"
 export function SiteFooter() {
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
+  const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
   return (
     <footer className="border-t-2 border-foreground bg-background mt-auto">
@@ -14,7 +15,7 @@ export function SiteFooter() {
           <CatFace className="w-10 h-10 text-muted-foreground" />
           <p 
             className="text-sm text-muted-foreground max-w-md"
-            style={{ fontFamily: titleFont }}
+            style={{ fontFamily: bodyFont ?? titleFont }}
           >
             {t(
               "小猫只会给你小猫角度的建议，然后你自己拍板哟",

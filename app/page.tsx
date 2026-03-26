@@ -8,6 +8,7 @@ import { useLanguage } from "@/lib/language-context"
 export default function HomePage() {
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
+  const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
   return (
     <main className="min-h-[calc(100vh-200px)] bg-background">
@@ -30,7 +31,7 @@ export default function HomePage() {
           
           <p 
             className="text-lg text-muted-foreground mb-12 max-w-md mx-auto"
-            style={{ fontFamily: titleFont }}
+            style={{ fontFamily: bodyFont ?? titleFont }}
           >
             {t(
               "人，纠结一定让你很苦恼吧，小猫来帮你啦！",
@@ -54,7 +55,7 @@ export default function HomePage() {
                 className="bg-background text-foreground border-2 border-foreground px-8 py-6 text-lg font-bold hover:bg-foreground hover:text-background transition-all hover:shadow-[4px_4px_0_0_var(--foreground)] w-48"
                 style={{ fontFamily: titleFont }}
               >
-                {t("先帮我理清", "Help Me Clarify")}
+                {t("先帮我理清思路", "Help Me Clarify")}
               </Button>
             </Link>
           </div>
@@ -88,7 +89,7 @@ export default function HomePage() {
                 >
                   {t("帮你决定", "Help You Decide")}
                 </h3>
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center" style={{ fontFamily: bodyFont }}>
                   {t(
                     "在两个选项之间犹豫不决？小猫会给你小猫自己的看法。",
                     "Stuck between two options? Decision Cat will give you its own perspective."
@@ -109,7 +110,7 @@ export default function HomePage() {
                 >
                   {t("帮你理清", "Help You Clarify")}
                 </h3>
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center" style={{ fontFamily: bodyFont }}>
                   {t(
                     "一团纠结？小猫帮你整理成两个清晰的方向。",
                     "A tangled mess? Decison Cat helps sort it into two clear paths."
@@ -130,7 +131,7 @@ export default function HomePage() {
                 >
                   {t("关于这只小猫", "About This Cat")}
                 </h3>
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center" style={{ fontFamily: bodyFont }}>
                   {t(
                     "了解小猫的理念：小猫不会强势地替你做决定，毕竟，人，你比小猫聪明嘛。",
                     "Learn the cat's philosophy: it won't decide for you, after all, you're smarter than catss."
