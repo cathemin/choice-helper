@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { CatFace, SketchQuestionMark, FishTreat, CatWand } from "@/components/cat-icon"
 import { SketchCard } from "@/components/sketch-card"
 import { Button } from "@/components/ui/button"
@@ -8,9 +10,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/lib/language-context"
 
 export default function DecidePage() {
-  const [text, setText] = useState("")
+  const searchParams = useSearchParams()
+  const initialPrefill = searchParams.get("q") ?? ""
+  const [text, setText] = useState(initialPrefill)
   const [results, setResults] = useState<Array<{ title: string; content: string }>>([])
   const [statusMessage, setStatusMessage] = useState("")
+  const [showClarifyCta, setShowClarifyCta] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
@@ -19,6 +24,7 @@ export default function DecidePage() {
   const handleAnalyze = async () => {
     if (!text.trim()) {
       setResults([])
+      setShowClarifyCta(false)
       setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decison Cat what you're struggling with first, meow."))
       return
     }
@@ -49,22 +55,61 @@ export default function DecidePage() {
           throw new Error("Invalid decision payload")
         }
 
+        const safeOption1Title = data.option1.replace(/option\s*[12]/gi, "").trim() || (language === "zh" ? "选项A" : "Option A")
+        const safeOption2Title = data.option2.replace(/option\s*[12]/gi, "").trim() || (language === "zh" ? "选项B" : "Option B")
+
+        const safeContent = (s: string, which: "a" | "b") => {
+          let out = s
+          if (which === "a") out = out.replace(/option\s*1/gi, safeOption1Title).replace(/option\s*2/gi, safeOption2Title)
+          if (which === "b") out = out.replace(/option\s*1/gi, safeOption1Title).replace(/option\s*2/gi, safeOption2Title)
+          out = out.replace(/option\s*[12]/gi, "").replace(/\s{2,}/g, " ").trim()
+          return out || (language === "zh" ? "小猫再认真想想…喵！" : "Meow—one more gentle thought...")
+        }
+
+        const safeLeaning = (s: string) => {
+          let out = s
+          out = out.replace(/option\s*1/gi, safeOption1Title).replace(/option\s*2/gi, safeOption2Title)
+          out = out.replace(/option\s*[12]/gi, "").replace(/\s{2,}/g, " ").trim()
+          return out || (language === "zh" ? "喵——小猫稍微偏向更合适的那边。" : "Meow—Decison Cat slightly leans toward what fits better.")
+        }
+
         setResults(
           language === "zh"
             ? [
-                { title: data.option1, content: data.reasonA },
-                { title: data.option2, content: data.reasonB },
-                { title: "小猫的倾向", content: data.leaning },
+                {
+                  title: safeOption1Title,
+                  content: safeContent(data.reasonA, "a"),
+                },
+                {
+                  title: safeOption2Title,
+                  content: safeContent(data.reasonB, "b"),
+                },
+                {
+                  title: "小猫的倾向",
+                  content: safeLeaning(data.leaning),
+                },
               ]
             : [
-                { title: data.option1, content: data.reasonA },
-                { title: data.option2, content: data.reasonB },
-                { title: "Cat's Preference", content: data.leaning },
+                {
+                  title: safeOption1Title,
+                  content: safeContent(data.reasonA, "a"),
+                },
+                {
+                  title: safeOption2Title,
+                  content: safeContent(data.reasonB, "b"),
+                },
+                {
+                  title: "Cat's Preference",
+                  content: safeLeaning(data.leaning),
+                },
               ]
         )
         setStatusMessage("")
+        setShowClarifyCta(false)
       } else {
         setResults([])
+        const invalidType = typeof data.invalidType === "string" ? data.invalidType : ""
+        setShowClarifyCta(invalidType === "too_many" || invalidType === "unclear")
         setStatusMessage(
           typeof data.message === "string" && data.message
             ? data.message
@@ -73,6 +118,7 @@ export default function DecidePage() {
       }
     } catch {
       setResults([])
+      setShowClarifyCta(false)
       setStatusMessage(t("小猫刚刚走神了，再试一次吧。", "The cat got distracted for a second—please try again, meow."))
     } finally {
       setIsAnalyzing(false)
@@ -142,6 +188,19 @@ export default function DecidePage() {
         </div>
 
         <p className="text-center text-sm text-muted-foreground min-h-6" style={{ fontFamily: bodyFont }}>{statusMessage}</p>
+        {showClarifyCta && (
+          <div className="mt-3 flex justify-center">
+            <Link href={`/clarify?q=${encodeURIComponent(text.trim())}`}>
+              <Button
+                variant="outline"
+                className="bg-background text-foreground border-2 border-foreground px-4 py-2 text-sm font-bold hover:bg-foreground hover:text-background transition-all hover:shadow-[4px_4px_0_0_var(--foreground)]"
+                style={{ fontFamily: titleFont }}
+              >
+                {t("选项有点乱？先让小猫帮你理清", "Too tangled? Let Decison Cat clarify first")}
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Result Cards */}
         {results.length > 0 && (
@@ -164,6 +223,7 @@ export default function DecidePage() {
               title={results[2].title}
               content={results[2].content}
               rotation="-0.5"
+              emphasize
             />
           </div>
         )}

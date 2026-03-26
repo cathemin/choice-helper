@@ -7,9 +7,10 @@ interface SketchCardProps {
   title: string
   content: string
   rotation?: string
+  emphasize?: boolean
 }
 
-export function SketchCard({ title, content, rotation = "0" }: SketchCardProps) {
+export function SketchCard({ title, content, rotation = "0", emphasize = false }: SketchCardProps) {
   const { language } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
   const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
@@ -23,7 +24,14 @@ export function SketchCard({ title, content, rotation = "0" }: SketchCardProps) 
         <PawPrint className="w-6 h-6 flex-shrink-0 mt-1" />
         <div>
           <h3 className="text-xl font-bold mb-2" style={{ fontFamily: titleFont }}>{title}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: bodyFont }}>{content}</p>
+          <p
+            className={`leading-relaxed ${
+              emphasize ? "text-sm text-foreground" : "text-sm text-muted-foreground"
+            }`}
+            style={{ fontFamily: bodyFont }}
+          >
+            {content}
+          </p>
         </div>
       </div>
     </div>

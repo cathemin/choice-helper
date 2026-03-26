@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { CatFace, FishTreat, CatWand } from "@/components/cat-icon"
 import { SketchCard } from "@/components/sketch-card"
 import { Button } from "@/components/ui/button"
@@ -9,41 +10,54 @@ import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/lib/language-context"
 
 export default function ClarifyPage() {
-  const [text, setText] = useState("")
+  const searchParams = useSearchParams()
+  const initialPrefill = searchParams.get("q") ?? ""
+  const [text, setText] = useState(initialPrefill)
   const [results, setResults] = useState<Array<{ title: string; content: string }> | null>(null)
+  const [statusMessage, setStatusMessage] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
   const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
-  const handleClarify = () => {
-    if (!text.trim()) return
+  const handleClarify = async () => {
+    if (!text.trim()) {
+      setResults(null)
+      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decison Cat what you're struggling with first, meow."))
+      return
+    }
 
     setIsAnalyzing(true)
+    setStatusMessage("")
 
-    // Simulate cat clarification
-    setTimeout(() => {
-      setResults(language === "zh" ? [
-        {
-          title: "方向 A",
-          content: "这一边代表着安全与稳定。你可能更看重确定性，想要在熟悉的环境中继续前进。这是一条清晰的路。"
-        },
-        {
-          title: "方向 B",
-          content: "这一边代表着变化与可能。你可能内心有一团火，想要尝试新的东西。这是一条充满未知的路。"
-        }
-      ] : [
-        {
-          title: "Direction A",
-          content: "This side stands for safety and stability. You may value certainty more, and want to keep moving in familiar surroundings. It's a clearer path."
-        },
-        {
-          title: "Direction B",
-          content: "This side stands for change and possibility. You may have a little fire inside and want to try something new. It's a path with more unknowns."
-        }
+    try {
+      const resp = await fetch("/api/clarify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text.trim() }),
+      })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const data = await resp.json()
+      if (
+        data?.mode !== "clarify" ||
+        typeof data.option1 !== "string" ||
+        typeof data.option2 !== "string" ||
+        typeof data.reasonA !== "string" ||
+        typeof data.reasonB !== "string"
+      ) {
+        throw new Error("Invalid clarify payload")
+      }
+      setResults([
+        { title: data.option1, content: data.reasonA },
+        { title: data.option2, content: data.reasonB },
       ])
+      setStatusMessage("")
+    } catch {
+      setResults(null)
+      setStatusMessage(t("小猫刚刚走神了，再试一次吧。", "Decison Cat got distracted. Please try again."))
+    } finally {
       setIsAnalyzing(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -101,6 +115,10 @@ export default function ClarifyPage() {
           </div>
         </div>
 
+        <p className="text-center text-sm text-muted-foreground min-h-6 mb-4" style={{ fontFamily: bodyFont }}>
+          {statusMessage}
+        </p>
+
         {/* Result Cards */}
         {results && (
           <div className="mt-16 space-y-8">
@@ -122,15 +140,23 @@ export default function ClarifyPage() {
               <p className="text-muted-foreground mb-4 text-sm" style={{ fontFamily: bodyFont }}>
                 {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let Decison Cat help you decide")}
               </p>
-              <Link href="/decide">
-                <Button
-                  variant="outline"
-                  className="bg-background text-foreground border-2 border-foreground px-6 py-4 font-bold hover:bg-foreground hover:text-background transition-all hover:shadow-[4px_4px_0_0_var(--foreground)]"
-                  style={{ fontFamily: titleFont }}
+              <div className="mt-3">
+                <Link
+                  href={`/decide?q=${encodeURIComponent(
+                    language === "zh"
+                      ? `${results[0].title} 还是 ${results[1].title}？`
+                      : `${results[0].title} or ${results[1].title}?`
+                  )}`}
                 >
-                  {t("继续让小猫帮你决定", "Continue and Let the Cat Decide")}
-                </Button>
-              </Link>
+                  <Button
+                    variant="outline"
+                    className="bg-background text-foreground border-2 border-foreground px-6 py-4 font-bold hover:bg-foreground hover:text-background transition-all hover:shadow-[4px_4px_0_0_var(--foreground)]"
+                    style={{ fontFamily: titleFont }}
+                  >
+                    {t("直接带着这两个选项去决定", "Decide with these two options now")}
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}

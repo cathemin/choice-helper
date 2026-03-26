@@ -31,6 +31,7 @@ function buildSystemPrompt(): string {
     "- 你自称“小猫”，不要出现“我”",
     "- 不要幼稚，不要说教",
     "- 不要使用“综合来看”“建议你选择”“你应该”",
+    "- 绝不能把占位词/字段名当内容输出：禁止出现 `option1`、`option2`、`reasonA`、`reasonB`、`leaning` 这些词（它们只存在于 JSON 字段名，不要出现在 value 文本里）。",
     "",
     "判断标准（由你完成，不要让程序用关键词/规则判断）：",
     "1) 如果用户输入中可以明确提取出两个方向，即使不是标准“还是/or/要不要”句式，也可以视为有效二选一。",
@@ -58,21 +59,77 @@ function buildSystemPrompt(): string {
   ].join("\n")
 }
 
+function sanitizeDecisionPlaceholders(
+  data: Record<string, string>,
+  lang: "zh" | "en"
+): Record<string, string> {
+  if (data.mode !== "decision") return data
+
+  const optionTokenRe = /option\s*[12]/gi
+  const cnOptionTokenRe = /选项\s*[12]/gi
+
+  const safeOption1 = data.option1.replace(optionTokenRe, "").replace(cnOptionTokenRe, "").trim() || (lang === "en" ? "Option A" : "选项A")
+  const safeOption2 = data.option2.replace(optionTokenRe, "").replace(cnOptionTokenRe, "").trim() || (lang === "en" ? "Option B" : "选项B")
+
+  const option1 = safeOption1
+  const option2 = safeOption2
+
+  const replaceOptionTokens = (s: string) => {
+    let out = s
+    out = out.replace(/option\s*1/gi, option1)
+    out = out.replace(/option\s*2/gi, option2)
+    // Last-resort: remove any remaining option tokens (avoid showing "option几")
+    out = out.replace(optionTokenRe, "")
+    out = out.replace(/\s{2,}/g, " ").trim()
+    return out || (lang === "en" ? "Meow—this side feels like a good first step." : "喵——这边像是更好的起点。")
+  }
+
+  return {
+    ...data,
+    option1: safeOption1,
+    option2: safeOption2,
+    reasonA: replaceOptionTokens(data.reasonA),
+    reasonB: replaceOptionTokens(data.reasonB),
+    leaning: replaceOptionTokens(data.leaning),
+  }
+}
+
 function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<string, string> {
   if (data.mode !== "decision") return data
 
   if (lang === "en") {
+    const pickLeanOption = (text: string) => {
+      const t = (text || "").toLowerCase()
+      if (data.option1 && t.includes(data.option1.toLowerCase())) return data.option1
+      if (data.option2 && t.includes(data.option2.toLowerCase())) return data.option2
+      return data.option1
+    }
+
     // Keep English natural while adding a subtle cat persona.
     const ensurePurr = (text: string, fallback: string) =>
       /meow|purr|paw/i.test(text) ? text : `${text} ${fallback}`
+
+    const leanOption = pickLeanOption(data.leaning)
 
     return {
       ...data,
       reasonA: ensurePurr(data.reasonA, "Meow, this side feels steadier and easier to start with!"),
       reasonB: ensurePurr(data.reasonB, "Meow—this side looks exciting, though a bit less predictable!"),
-      leaning: ensurePurr(data.leaning, "Decison Cat vibe leans here today; calm but lively!"),
+      leaning: ensurePurr(
+        `Meow! Decison Cat leans toward "${leanOption}". ${data.leaning}`,
+        "Meow, this side is the better starting point!"
+      ),
     }
   }
+
+  const pickLeanOptionZh = (text: string) => {
+    const t = (text || "").toString()
+    if (data.option1 && t.includes(data.option1)) return data.option1
+    if (data.option2 && t.includes(data.option2)) return data.option2
+    return data.option1
+  }
+
+  const leanOption = pickLeanOptionZh(data.leaning)
 
   const hasMiao = (s: string) => s.includes("喵")
   const addMiaoFlavor = (s: string, phrase: string) => (hasMiao(s) ? s : `${phrase}${s}`)
@@ -89,6 +146,7 @@ function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<
   let leaning = sanitize(data.leaning)
 
   reasonA = addMiaoFlavor(reasonA, "喵，小猫闻了闻，")
+  leaning = `喵！小猫更偏向「${leanOption}」。${leaning}`
   leaning = addMiaoFlavor(leaning, "喵！小猫认真看完后，")
   if (!/[!！]$/.test(leaning)) leaning = `${leaning}！`
 
@@ -155,6 +213,18 @@ function normalizePayload(data: unknown): Record<string, string> | null {
   return null
 }
 
+function hasPlaceholderLeak(data: Record<string, string>): boolean {
+  if (data.mode !== "decision") return false
+  const optionTokenRe = /option\s*[12]/i
+  const reasonKeyRe = /\breason\s*[ab]\b/i
+
+  const values = [data.option1, data.option2, data.reasonA, data.reasonB, data.leaning]
+  return values.some((s) => {
+    const v = (s || "").toString().trim()
+    return optionTokenRe.test(v) || reasonKeyRe.test(v) || v === "..."
+  })
+}
+
 async function callDeepSeek(question: string) {
   const lang = detectLanguage(question)
   const messages = [
@@ -183,7 +253,12 @@ async function callDeepSeek(question: string) {
         const parsed = parseJsonObject(content)
         const normalized = normalizePayload(parsed)
         if (!normalized) throw new Error("Invalid payload shape")
-        return enrichCatTone(normalized, lang)
+
+        // Hard guarantee: never let "option1/option2" leak into UI.
+        const sanitized = sanitizeDecisionPlaceholders(normalized, lang)
+        if (hasPlaceholderLeak(sanitized)) throw new Error("Template placeholder still leaked in output")
+
+        return enrichCatTone(sanitized, lang)
       } catch (e) {
         lastError = e
       }
@@ -269,7 +344,9 @@ export async function POST(request: Request) {
     const data = await callDeepSeek(question)
     if (data.mode === "invalid" && data.invalidType === "too_few") {
       const coerced = await coerceTooFewToDecision(question)
-      return Response.json(coerced)
+      const lang = detectLanguage(question)
+      const sanitized = sanitizeDecisionPlaceholders(coerced, lang)
+      return Response.json(sanitized)
     }
     return Response.json(data)
   } catch (e) {
