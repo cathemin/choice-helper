@@ -33,8 +33,8 @@ export default function HomePage() {
             style={{ fontFamily: titleFont }}
           >
             {t(
-              "一个黑白极简的小猫决策实验室",
-              "A minimalist black & white cat decision lab"
+              "人，纠结一定让你很苦恼吧，小猫来帮你啦！",
+              "Hey human, being stuck is exhausting, right? The cat is here to help!"
             )}
           </p>
           
@@ -90,8 +90,8 @@ export default function HomePage() {
                 </h3>
                 <p className="text-sm text-muted-foreground text-center">
                   {t(
-                    "在A和B之间犹豫不决？小猫会给你一个轻轻的推力。",
-                    "Stuck between A and B? The cat will give you a gentle nudge."
+                    "在A和B之间犹豫不决？小猫会陪你把两边想清楚。",
+                    "Stuck between A and B? The cat will help you sort both sides clearly."
                   )}
                 </p>
               </div>
@@ -132,8 +132,8 @@ export default function HomePage() {
                 </h3>
                 <p className="text-sm text-muted-foreground text-center">
                   {t(
-                    "了解小猫的理念：它不替你做决定，只是轻轻推你一下。",
-                    "Learn the cat's philosophy: it doesn't decide for you, just gives a gentle push."
+                    "了解小猫的理念：它不替你做决定，只会陪你把想法理顺。",
+                    "Learn the cat's philosophy: it won't decide for you, only help organize your thoughts."
                   )}
                 </p>
               </div>
@@ -142,17 +142,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bottom Note */}
-      <section className="px-4 py-12 border-t-2 border-foreground">
-        <div className="max-w-2xl mx-auto text-center">
-          <p className="text-muted-foreground text-sm">
-            {t(
-              "小猫目前最擅长二选一。把你的纠结告诉它，它会认真思考，然后用尾巴指向一个方向。",
-              "The cat is best at choosing between two options. Tell it your dilemma, and it will think carefully, then point its tail in one direction."
-            )}
-          </p>
-        </div>
-      </section>
     </main>
   )
 }

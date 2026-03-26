@@ -43,7 +43,7 @@ export default function AboutPage() {
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
                   {t(
-                    "这不是一个告诉你「正确答案」的工具。小猫不知道什么是对的，它只是一只猫。它能做的，是在你犹豫的时候，用尾巴轻轻指向一个方向——那个方向也许正是你内心深处想要的。",
+                    "这不是一个告诉你「正确答案」的工具。小猫不知道什么是对的，它只是一只猫。它能做的，是在你犹豫的时候，给你一个小小的理由。也许正好能戳中你内心深处最想要的那个点呢？",
                     "This isn't a tool that tells you the 'right answer.' The cat doesn't know what's right - it's just a cat. What it can do is point its tail gently in one direction when you're hesitating - perhaps the direction your heart truly wants."
                   )}
                 </p>
@@ -60,11 +60,11 @@ export default function AboutPage() {
                   className="text-xl font-bold mb-3"
                   style={{ fontFamily: titleFont }}
                 >
-                  {t("它只是轻轻推你一下", "It Just Gives You a Gentle Nudge")}
+                  {t("它会陪你把想法理顺", "It Helps You Sort Your Thoughts")}
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
                   {t(
-                    "有时候，我们需要的不是分析和建议，而是一个小小的推力。当两个选项都不错，当理性分析已经做完，当你只差一个理由去行动——小猫就在这里，用它毛茸茸的爪子轻轻推你一下。",
+                    "有时候你纠结的并不是答案，而是连问题都还没长清楚。当你还说不出准确的两个选项时，小猫会先帮你把那团模糊的念头收一收，整理成两个可以真正拿来选的方向。",
                     "Sometimes we don't need analysis and advice, just a little push. When both options are good, when rational analysis is done, when you just need one reason to act - the cat is here, giving you a gentle push with its fluffy paw."
                   )}
                 </p>
@@ -105,19 +105,10 @@ export default function AboutPage() {
               )}
             </p>
             <p className="text-muted-foreground text-sm mt-4">
-              —— {t("小猫决策室", "Cat Decision Lab")}
+              —— {t("决策喵", "Decision Meow")}
             </p>
           </section>
 
-          {/* Footer note */}
-          <section className="text-center">
-            <p className="text-muted-foreground text-sm">
-              {t(
-                "小猫决策室是一个黑白极简的决策实验室。它不是AI工具站，而是一个有世界观的小小空间。",
-                "Cat Decision Lab is a minimalist black & white decision laboratory. It's not an AI tool site, but a small space with its own worldview."
-              )}
-            </p>
-          </section>
         </div>
       </div>
     </main>

@@ -7,10 +7,10 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: {
-    default: "小猫决策室",
-    template: "%s · 小猫决策室",
+    default: "决策喵",
+    template: "%s · 决策喵",
   },
-  description: "一个黑白极简的小猫决策实验室。小猫不替你做决定，它只是轻轻推你一下。",
+  description: "一个黑白极简的小猫决策实验室。小猫不替你拍板，只陪你把思路理清。",
 }
 
 export default function RootLayout({

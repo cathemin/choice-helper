@@ -17,15 +17,15 @@ export function SiteFooter() {
             style={{ fontFamily: titleFont }}
           >
             {t(
-              "小猫不替你做决定，它只是轻轻推你一下。",
-              "The cat doesn't decide for you, it just gives you a gentle nudge."
+              "小猫只会给你小猫角度的建议，然后你自己拍板哟",
+              "The cat won't decide for you. It helps you sort your thoughts, then you choose."
             )}
           </p>
           <p 
             className="text-xs text-muted-foreground"
             style={{ fontFamily: titleFont }}
           >
-            {t("小猫决策室", "Cat Decision Lab")} · 2024
+            {t("决策喵", "Decision Meow")} · 2026
           </p>
         </div>
       </div>

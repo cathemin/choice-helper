@@ -27,7 +27,7 @@ export function SiteNav() {
             className="text-lg font-bold text-foreground hidden sm:inline"
             style={{ fontFamily: titleFont }}
           >
-            {t("小猫决策室", "Cat Decision Lab")}
+            {t("决策喵", "Decision Meow")}
           </span>
         </Link>
         
