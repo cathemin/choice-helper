@@ -18,7 +18,7 @@ export default function DecidePage() {
   const handleAnalyze = async () => {
     if (!text.trim()) {
       setResults([])
-      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell the cat what you're struggling with first."))
+      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decison Cat what you're struggling with first, meow."))
       return
     }
 
@@ -72,7 +72,7 @@ export default function DecidePage() {
       }
     } catch {
       setResults([])
-      setStatusMessage(t("小猫刚刚走神了，再试一次吧。", "The cat got distracted. Please try again."))
+      setStatusMessage(t("小猫刚刚走神了，再试一次吧。", "The cat got distracted for a second—please try again, meow."))
     } finally {
       setIsAnalyzing(false)
     }
@@ -101,7 +101,7 @@ export default function DecidePage() {
           >
             {t(
               "把你的纠结告诉小猫，它会帮你做出选择。",
-              "Tell the cat your dilemma, and it will help you choose."
+              "Tell Decison Cat your dilemma, and it will help you choose."
             )}
           </p>
         </header>

@@ -33,12 +33,12 @@ export default function ClarifyPage() {
         }
       ] : [
         {
-          title: "Path A",
-          content: "This side represents safety and stability. You may value certainty more, wanting to move forward in familiar surroundings. This is a clear path."
+          title: "Direction A",
+          content: "This side stands for safety and stability. You may value certainty more, and want to keep moving in familiar surroundings. It's a clearer path."
         },
         {
-          title: "Path B",
-          content: "This side represents change and possibility. You may have a fire inside, wanting to try something new. This is a path full of unknowns."
+          title: "Direction B",
+          content: "This side stands for change and possibility. You may have a little fire inside and want to try something new. It's a path with more unknowns."
         }
       ])
       setIsAnalyzing(false)
@@ -74,9 +74,9 @@ export default function ClarifyPage() {
             onChange={(e) => setText(e.target.value)}
             placeholder={t(
               "把你的纠结都写下来，不用整理，想到什么写什么...",
-              "Write down all your thoughts, no need to organize, just write what comes to mind..."
+              "Write down everything on your mind—no need to organize it first. Just type whatever comes up..."
             )}
-            aria-label={t("输入你的纠结", "Enter your thoughts")}
+            aria-label={t("输入你的纠结", "Enter your dilemma")}
             className="min-h-[180px] border-2 border-foreground bg-card text-foreground placeholder:text-muted-foreground focus:shadow-[4px_4px_0_0_var(--foreground)] transition-shadow resize-none text-base p-6"
           />
         </div>
@@ -91,7 +91,7 @@ export default function ClarifyPage() {
               style={{ fontFamily: titleFont }}
             >
               {isAnalyzing
-                ? t("小猫正在整理…", "Cat is organizing...")
+                ? t("小猫正在整理…", "Decison Cat is sorting it out...")
                 : t("帮我理清", "Help Me Clarify")}
             </Button>
             <FishTreat className="absolute -left-20 top-1/2 -translate-y-1/2 w-14 h-7 text-muted-foreground hidden sm:block" />
@@ -118,7 +118,7 @@ export default function ClarifyPage() {
             {/* Continue to Decide */}
             <div className="text-center pt-8 border-t-2 border-muted">
               <p className="text-muted-foreground mb-4 text-sm">
-                {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let the cat help you decide")}
+                {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let Decison Cat help you decide")}
               </p>
               <Link href="/decide">
                 <Button
@@ -126,7 +126,7 @@ export default function ClarifyPage() {
                   className="bg-background text-foreground border-2 border-foreground px-6 py-4 font-bold hover:bg-foreground hover:text-background transition-all hover:shadow-[4px_4px_0_0_var(--foreground)]"
                   style={{ fontFamily: titleFont }}
                 >
-                  {t("继续让小猫帮你决定", "Continue to Let Cat Decide")}
+                  {t("继续让小猫帮你决定", "Continue and Let the Cat Decide")}
                 </Button>
               </Link>
             </div>

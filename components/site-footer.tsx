@@ -18,7 +18,7 @@ export function SiteFooter() {
           >
             {t(
               "小猫只会给你小猫角度的建议，然后你自己拍板哟",
-              "The cat won't decide for you. It helps you sort your thoughts, then you choose."
+              "Decison Cat offers a cat-flavored perspective, and then you make the final call, meow."
             )}
           </p>
           <p 

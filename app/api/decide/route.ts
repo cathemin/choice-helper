@@ -70,7 +70,7 @@ function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<
       ...data,
       reasonA: ensurePurr(data.reasonA, "Meow, this side feels steadier and easier to start with!"),
       reasonB: ensurePurr(data.reasonB, "Meow—this side looks exciting, though a bit less predictable!"),
-      leaning: ensurePurr(data.leaning, "The cat vibe leans here today; calm but lively!"),
+      leaning: ensurePurr(data.leaning, "Decison Cat vibe leans here today; calm but lively!"),
     }
   }
 
@@ -240,7 +240,7 @@ async function coerceTooFewToDecision(question: string) {
       option2: "Not for now",
       reasonA: "If you do it now, you'll stop overthinking and get immediate clarity.",
       reasonB: "If you wait, you'll protect your energy and leave room to reassess calmly.",
-      leaning: "If the cat has to tap one side with a paw, the cat slightly leans to doing it now—just one small step first.",
+      leaning: "If Decison Cat has to tap one side with a paw, Decison Cat slightly leans to doing it now—just one small step first.",
     }
   }
 
