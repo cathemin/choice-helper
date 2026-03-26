@@ -4,11 +4,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const confusionInput = document.getElementById("confusionInput");
   const status = document.getElementById("status");
   const resultArea = document.getElementById("resultArea");
+  const option1Label = document.getElementById("option1Label");
+  const option2Label = document.getElementById("option2Label");
   const reasonA = document.getElementById("reasonA");
   const reasonB = document.getElementById("reasonB");
   const leaning = document.getElementById("leaning");
 
-  if (!tryBtn || !confusionInput || !status || !resultArea || !reasonA || !reasonB || !leaning) return;
+  if (
+    !tryBtn ||
+    !confusionInput ||
+    !status ||
+    !resultArea ||
+    !option1Label ||
+    !option2Label ||
+    !reasonA ||
+    !reasonB ||
+    !leaning
+  )
+    return;
 
   const originalText = tryBtn.textContent;
   const loadingText = "让小猫想想…";
@@ -46,26 +59,28 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (data.mode === "decision") {
-        if (
-          typeof data.reasonA !== "string" ||
-          typeof data.reasonB !== "string" ||
-          typeof data.leaning !== "string"
-        ) {
-          throw new Error("Invalid decision response shape");
+        if (typeof data.option1 !== "string" || typeof data.option2 !== "string") {
+          throw new Error("Invalid decision response: missing option1/option2");
+        }
+        if (typeof data.reasonA !== "string" || typeof data.reasonB !== "string" || typeof data.leaning !== "string") {
+          throw new Error("Invalid decision response: missing reasonA/reasonB/leaning");
         }
 
         status.textContent = "";
+        option1Label.textContent = data.option1;
+        option2Label.textContent = data.option2;
         reasonA.textContent = data.reasonA;
         reasonB.textContent = data.reasonB;
         leaning.textContent = data.leaning;
         resultArea.hidden = false;
       } else {
         resultArea.hidden = true;
+        option1Label.textContent = "";
+        option2Label.textContent = "";
         reasonA.textContent = "";
         reasonB.textContent = "";
         leaning.textContent = "";
-        status.textContent =
-          typeof data.message === "string" && data.message ? data.message : "小猫没接住你的话，再试一次吧。";
+        status.textContent = typeof data.message === "string" && data.message ? data.message : "小猫没接住你的话，再试一次吧。";
       }
     } catch (e) {
       resultArea.hidden = true;

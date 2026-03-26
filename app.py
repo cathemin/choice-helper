@@ -32,9 +32,16 @@ DEBUG = env_bool("DEBUG", False)
 
 app = Flask(__name__)
 
+# 按你的要求初始化（DeepSeek OpenAI 兼容）
 client = OpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY") or "",
     base_url="https://api.deepseek.com",
+)
+
+# 备用：有些兼容实现 base_url 可能需要显式包含 /v1
+client_v1 = OpenAI(
+    api_key=os.getenv("DEEPSEEK_API_KEY") or "",
+    base_url="https://api.deepseek.com/v1",
 )
 
 def has_standalone_option(question: str, option: str) -> bool:
@@ -155,26 +162,50 @@ def detect_mode(question: str) -> dict:
 
 
 def build_deepseek_system_prompt() -> str:
-    # 你的产品文案约束：安静、聪明、温和、轻微偏向、严格 JSON
+    # 按你的要求：由 AI 自己判断输入是否构成二选一，并返回 mode=decision/invalid。
     return (
-        "你是一只安静、聪明、温和的小猫顾问。\n\n"
-        "你的任务是在用户犹豫时帮ta做出选择。你会观察用户的问题，分别写出两边的理由，再给出一个轻微倾向。\n\n"
+        "你是一只安静、聪明、温和的小猫顾问。\n"
+        "你的任务是在用户犹豫时帮ta做出选择。\n"
+        "你会先判断用户的问题是否构成一个清晰的二选一。\n\n"
         "语气要求：\n"
         "- 温和、自然、克制\n"
         "- 可以有一点小猫的感觉，萌中带点傲娇\n"
         "- 可以在句子中偶尔加入一些“喵”\n"
         "- 你是一只小猫，语气是淡淡的萌感\n"
-        "- 你自称“小猫”，不要出现“我”\n"
+        '- 你自称“小猫”，不要出现“我”\n'
         "- 不要幼稚，不要过度卖萌\n"
         "- 不要说教\n"
         "- 不要使用“综合来看”“建议你选择”“你应该”\n\n"
+        "判断标准（由你完成，不要让程序用关键词/规则判断）：\n"
+        "1) 如果用户输入中可以明确提取出两个方向，即使不是标准“还是/or/要不要”句式，也可以视为有效二选一。\n"
+        "   例如：上厕所 or 洗澡、可不可以现在去洗澡、要不要继续这个项目、学不学日语、去不去那个活动。\n"
+        "2) 如果输入包含太多选项，无法自然压缩成两个选项，则返回无效：invalidType=too_many。\n"
+        "3) 如果只有一个模糊方向，没有明显对立面，则返回无效：invalidType=too_few。\n"
+        "4) 如果表达太模糊，看不出具体在选什么，则返回无效：invalidType=unclear。\n\n"
         "输出要求：\n"
-        "必须严格返回 JSON，不要有任何额外文本：\n\n"
+        "必须严格返回 JSON，不要有任何额外文本。\n\n"
+        "当有效二选一时，返回：\n"
         "{\n"
-        '  "reasonA": "...",\n'
-        '  "reasonB": "...",\n'
-        '  "leaning": "..."\n'
-        "}\n"
+        '  "mode": "decision",\n'
+        '  "option1": "选项1",\n'
+        '  "option2": "选项2",\n'
+        '  "reasonA": "这一边的理由",\n'
+        '  "reasonB": "另一边的理由",\n'
+        '  "leaning": "小猫的轻微倾向"\n'
+        "}\n\n"
+        "当无效时，返回：\n"
+        "{\n"
+        '  "mode": "invalid",\n'
+        '  "invalidType": "too_many" 或 "too_few" 或 "unclear",\n'
+        '  "message": "给用户看的小猫提示文案"\n'
+        "}\n\n"
+        "无效时 message 文案规则（必须使用以下风格文案，按 invalidType 选择对应内容）：\n"
+        'too_many：\n'
+        "“选项有点多，小猫有点转不过来啦…你可以先告诉我两个你最在意的选项吗？”\n"
+        'too_few：\n'
+        "“小猫好像只看到一个方向呢。你可以再想想，有没有另一个你在犹豫的选项？”\n"
+        'unclear：\n'
+        "“小猫还没太看懂你在两种什么之间纠结呢。可以再说得具体一点吗？”\n"
     )
 
 
@@ -188,21 +219,74 @@ def decide_with_deepseek(question: str) -> dict:
         {"role": "user", "content": question},
     ]
 
-    # openai 兼容接口调用 DeepSeek
-    resp = client.chat.completions.create(
-        model="deepseek-chat",
-        messages=messages,
-        response_format={"type": "json_object"},
-    )
+    def parse_json_from_content(content: str) -> dict:
+        content = (content or "").strip()
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            # 有些兼容实现可能不会严格返回 JSON；尝试从文本中提取第一个 JSON 对象
+            m = re.search(r"\{.*\}", content, flags=re.S)
+            if not m:
+                raise
+            return json.loads(m.group(0))
 
-    content = resp.choices[0].message.content
-    parsed = json.loads(content)
+    # openai 兼容接口调用 DeepSeek（先尝试 response_format，失败则回退）
+    last_error = None
+    for use_response_format in (True, False):
+        try:
+            if use_response_format:
+                try:
+                    resp = client.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=messages,
+                        response_format={"type": "json_object"},
+                    )
+                except Exception:
+                    # 备用 base_url 兼容
+                    resp = client_v1.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=messages,
+                        response_format={"type": "json_object"},
+                    )
+            else:
+                try:
+                    resp = client.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=messages,
+                    )
+                except Exception:
+                    resp = client_v1.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=messages,
+                    )
 
-    for key in ("reasonA", "reasonB", "leaning"):
-        if key not in parsed or not isinstance(parsed[key], str):
-            raise ValueError("AI output missing required keys or wrong types.")
+            content = resp.choices[0].message.content or ""
+            parsed = parse_json_from_content(content)
 
-    return {"reasonA": parsed["reasonA"], "reasonB": parsed["reasonB"], "leaning": parsed["leaning"]}
+            if not isinstance(parsed, dict) or "mode" not in parsed or not isinstance(parsed["mode"], str):
+                raise ValueError("AI output is not a valid JSON object with a string mode.")
+
+            mode = parsed["mode"]
+            if mode == "decision":
+                for key in ("option1", "option2", "reasonA", "reasonB", "leaning"):
+                    if key not in parsed or not isinstance(parsed[key], str):
+                        raise ValueError("AI decision output missing required keys or wrong types.")
+                return parsed
+
+            if mode == "invalid":
+                if "invalidType" not in parsed or not isinstance(parsed["invalidType"], str):
+                    raise ValueError("AI invalid output missing invalidType.")
+                if parsed["invalidType"] not in {"too_many", "too_few", "unclear"}:
+                    raise ValueError("AI invalidType is not allowed.")
+                if "message" not in parsed or not isinstance(parsed["message"], str):
+                    raise ValueError("AI invalid output missing message.")
+                return parsed
+
+            raise ValueError("AI output mode must be decision or invalid.")
+        except Exception as e:
+            last_error = e
+
+    raise RuntimeError(f"DeepSeek call failed: {last_error}")
 
 
 @app.post("/api/decide")
@@ -213,26 +297,18 @@ def api_decide():
         return jsonify({"error": "question is required"}), 400
 
     question = question.strip()
-
-    mode_info = detect_mode(question)
-    if mode_info.get("mode") != "decision":
-        return jsonify(mode_info)
-
-    # decision：才返回 reasonA/reasonB/leaning
     if not DEEPSEEK_API_KEY:
-        if MOCK_MODE:
-            result = mock_decide(question)
-            return jsonify({"mode": "decision", **result})
         return jsonify({"mode": "error", "message": "小猫刚刚走神了，再试一次吧。"})
 
     try:
         result = decide_with_deepseek(question)
-        return jsonify({"mode": "decision", **result})
-    except Exception:
-        # API 调用失败：返回错误模式（前端会只展示 message）
-        return jsonify(
-            {"mode": "error", "message": "小猫刚刚走神了，再试一次吧。"}
-        )
+        return jsonify(result)
+    except Exception as e:
+        err_msg = "小猫刚刚走神了，再试一次吧。"
+        print(f"[api/decide] DeepSeek call failed: {e}")
+        if DEBUG:
+            return jsonify({"mode": "error", "message": err_msg, "debug": str(e)})
+        return jsonify({"mode": "error", "message": err_msg})
 
 
 @app.get("/")
