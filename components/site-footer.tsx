@@ -26,7 +26,7 @@ export function SiteFooter() {
             className="text-xs text-muted-foreground"
             style={{ fontFamily: titleFont }}
           >
-            {t("决策喵", "Decision Meow")} · 2026
+            {t("决策喵", "Decision Cat")} · 2026
           </p>
         </div>
       </div>

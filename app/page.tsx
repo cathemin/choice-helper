@@ -134,7 +134,7 @@ export default function HomePage() {
                 <p className="text-sm text-muted-foreground text-center" style={{ fontFamily: bodyFont }}>
                   {t(
                     "了解小猫的理念：小猫不会强势地替你做决定，毕竟，人，你比小猫聪明嘛。",
-                    "Learn the cat's philosophy: it won't decide for you, after all, you're smarter than catss."
+                    " Decision Cat won't decide for you, after all, you're smarter than cats."
                   )}
                 </p>
               </div>
