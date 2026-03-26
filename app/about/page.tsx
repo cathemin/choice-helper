@@ -131,12 +131,12 @@ export default function AboutPage() {
           <section className="text-center py-8 border-t-2 border-b-2 border-foreground">
             <p 
               className="text-lg text-foreground italic"
-              style={{ fontFamily: bodyFont ?? titleFont }}
+              style={{ fontFamily: titleFont }}
             >
               {language === "zh" ? quotePool[quoteIndex].zh : quotePool[quoteIndex].en}
             </p>
             <p className="text-muted-foreground text-sm mt-4" style={{ fontFamily: bodyFont }}>
-              —— {t("决策喵", "Decision Meow")}
+              —— {t("决策喵", "Decision Cat")}
             </p>
           </section>
 
