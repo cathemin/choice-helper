@@ -94,7 +94,26 @@ function sanitizeDecisionPlaceholders(
   }
 }
 
-function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<string, string> {
+function detectEmotionHint(question: string): "sad" | "achieve" | "neutral" {
+  const q = (question || "").toString()
+  const sad = /伤心|难过|崩溃|失落|郁闷|委屈|哭|眼泪|绝望|很痛|心痛/i.test(q)
+  const achieve = /成功|完成|通过|拿到|赢|胜利|获得|拿奖|做到了|很棒|太厉害|拿下/i.test(q)
+  if (sad) return "sad"
+  if (achieve) return "achieve"
+  return "neutral"
+}
+
+function ensureZhLeaningEndsWithDotBang(s: string): string {
+  const trimmed = (s || "").toString().trim()
+  const core = trimmed.replace(/[。！？!?！]+$/g, "").trim()
+  return core ? `${core}。！` : "喵！小猫更偏向你更合适的那边。！"
+}
+
+function enrichCatTone(
+  data: Record<string, string>,
+  lang: "zh" | "en",
+  question?: string
+): Record<string, string> {
   if (data.mode !== "decision") return data
 
   if (lang === "en") {
@@ -111,12 +130,21 @@ function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<
 
     const leanOption = pickLeanOption(data.leaning)
 
+    const emotion = question ? detectEmotionHint(question) : "neutral"
+    const kaomoji = "(=^.^=)"
+    const emotionPhrase =
+      emotion === "sad"
+        ? `Meow—hang in there ${kaomoji} `
+        : emotion === "achieve"
+          ? `Meow, congrats ${kaomoji} `
+          : ""
+
     return {
       ...data,
       reasonA: ensurePurr(data.reasonA, "Meow, this side feels steadier and easier to start with!"),
       reasonB: ensurePurr(data.reasonB, "Meow—this side looks exciting, though a bit less predictable!"),
       leaning: ensurePurr(
-        `Meow! Decison Cat leans toward "${leanOption}". ${data.leaning}`,
+        `${emotionPhrase}Meow! Decison Cat leans toward "${leanOption}". ${data.leaning}`,
         "Meow, this side is the better starting point!"
       ),
     }
@@ -130,6 +158,14 @@ function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<
   }
 
   const leanOption = pickLeanOptionZh(data.leaning)
+  const emotion = question ? detectEmotionHint(question) : "neutral"
+  const kaomoji = "(=^.^=)"
+  const emotionPhrase =
+    emotion === "sad"
+      ? `小猫抱抱 ${kaomoji}，`
+      : emotion === "achieve"
+        ? `小猫悄悄鼓掌 ${kaomoji}，`
+        : ""
 
   const hasMiao = (s: string) => s.includes("喵")
   const addMiaoFlavor = (s: string, phrase: string) => (hasMiao(s) ? s : `${phrase}${s}`)
@@ -146,9 +182,8 @@ function enrichCatTone(data: Record<string, string>, lang: "zh" | "en"): Record<
   let leaning = sanitize(data.leaning)
 
   reasonA = addMiaoFlavor(reasonA, "喵，小猫闻了闻，")
-  leaning = `喵！小猫更偏向「${leanOption}」。${leaning}`
-  leaning = addMiaoFlavor(leaning, "喵！小猫认真看完后，")
-  if (!/[!！]$/.test(leaning)) leaning = `${leaning}！`
+  leaning = `喵！小猫更偏向「${leanOption}」。${emotionPhrase}${leaning}`
+  leaning = ensureZhLeaningEndsWithDotBang(leaning)
 
   const miaoCount = [reasonA, reasonB, leaning].filter(hasMiao).length
   if (miaoCount < 2) {
@@ -258,7 +293,7 @@ async function callDeepSeek(question: string) {
         const sanitized = sanitizeDecisionPlaceholders(normalized, lang)
         if (hasPlaceholderLeak(sanitized)) throw new Error("Template placeholder still leaked in output")
 
-        return enrichCatTone(sanitized, lang)
+        return enrichCatTone(sanitized, lang, question)
       } catch (e) {
         lastError = e
       }
@@ -346,7 +381,7 @@ export async function POST(request: Request) {
       const coerced = await coerceTooFewToDecision(question)
       const lang = detectLanguage(question)
       const sanitized = sanitizeDecisionPlaceholders(coerced, lang)
-      return Response.json(sanitized)
+      return Response.json(enrichCatTone(sanitized, lang, question))
     }
     return Response.json(data)
   } catch (e) {
