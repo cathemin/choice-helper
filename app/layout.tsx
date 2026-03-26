@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     default: "决策喵",
     template: "%s · 决策喵",
   },
-  description: "一个黑白极简的小猫决策实验室。小猫不替你拍板，只陪你把思路理清。",
+  description: "人，纠结一定让你很苦恼吧，小猫来帮你啦！",
 }
 
 export default function RootLayout({
