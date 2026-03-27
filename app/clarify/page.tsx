@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
 import { CatFace, FishTreat, CatWand } from "@/components/cat-icon"
 import { SketchCard } from "@/components/sketch-card"
 import { Button } from "@/components/ui/button"
@@ -10,15 +9,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/lib/language-context"
 
 export default function ClarifyPage() {
-  const searchParams = useSearchParams()
-  const initialPrefill = searchParams.get("q") ?? ""
-  const [text, setText] = useState(initialPrefill)
+  const [text, setText] = useState("")
   const [results, setResults] = useState<Array<{ title: string; content: string }> | null>(null)
   const [statusMessage, setStatusMessage] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const { language, t } = useLanguage()
   const titleFont = language === "zh" ? "var(--font-title-zh)" : "var(--font-title-en)"
   const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get("q") ?? ""
+    if (query) setText((prev) => prev || query)
+  }, [])
 
   const handleClarify = async () => {
     if (!text.trim()) {
