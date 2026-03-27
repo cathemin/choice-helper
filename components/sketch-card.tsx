@@ -26,7 +26,7 @@ export function SketchCard({ title, content, rotation = "0", emphasize = false }
           <h3 className="text-xl font-bold mb-2" style={{ fontFamily: titleFont }}>{title}</h3>
           <p
             className={`leading-relaxed ${
-              emphasize ? "text-sm text-foreground" : "text-sm text-muted-foreground"
+              emphasize ? "text-sm text-muted-foreground" : "text-sm text-muted-foreground"
             }`}
             style={{ fontFamily: bodyFont }}
           >

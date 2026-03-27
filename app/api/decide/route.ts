@@ -94,19 +94,25 @@ function sanitizeDecisionPlaceholders(
   }
 }
 
-function detectEmotionHint(question: string): "sad" | "achieve" | "neutral" {
+function detectEmotionHint(question: string): "sad" | "achieve" | "confused" | "angry" | "excited" | "neutral" {
   const q = (question || "").toString()
   const sad = /伤心|难过|崩溃|失落|郁闷|委屈|哭|眼泪|绝望|很痛|心痛/i.test(q)
   const achieve = /成功|完成|通过|拿到|赢|胜利|获得|拿奖|做到了|很棒|太厉害|拿下/i.test(q)
+  const confused = /纠结|迷茫|不知道|拿不准|不确定|懵|confused|unsure|uncertain|lost/i.test(q)
+  const angry = /生气|愤怒|火大|烦死|气死|不爽|angry|mad|furious|annoyed/i.test(q)
+  const excited = /激动|兴奋|好开心|热血|上头|迫不及待|excited|thrilled|pumped/i.test(q)
   if (sad) return "sad"
   if (achieve) return "achieve"
+  if (angry) return "angry"
+  if (excited) return "excited"
+  if (confused) return "confused"
   return "neutral"
 }
 
-function ensureZhLeaningEndsWithDotBang(s: string): string {
+function ensureZhLeaningEndingNatural(s: string): string {
   const trimmed = (s || "").toString().trim()
   const core = trimmed.replace(/[。！？!?！]+$/g, "").trim()
-  return core ? `${core}。！` : "喵！小猫更偏向你更合适的那边。！"
+  return core ? `${core}。` : "喵！小猫更偏向你更合适的那边。"
 }
 
 function enrichCatTone(
@@ -137,6 +143,12 @@ function enrichCatTone(
         ? `Meow—hang in there ${kaomoji} `
         : emotion === "achieve"
           ? `Meow, congrats ${kaomoji} `
+          : emotion === "confused"
+            ? `Meow, it's okay to feel tangled ${kaomoji} `
+            : emotion === "angry"
+              ? `Meow, take one slow breath first ${kaomoji} `
+              : emotion === "excited"
+                ? `Meow, love that energy ${kaomoji} `
           : ""
 
     return {
@@ -165,6 +177,12 @@ function enrichCatTone(
       ? `小猫抱抱 ${kaomoji}，`
       : emotion === "achieve"
         ? `小猫悄悄鼓掌 ${kaomoji}，`
+        : emotion === "confused"
+          ? `小猫懂这种乱糟糟的感觉 ${kaomoji}，`
+          : emotion === "angry"
+            ? `小猫先陪你缓一口气 ${kaomoji}，`
+            : emotion === "excited"
+              ? `小猫也有点兴奋起来了 ${kaomoji}，`
         : ""
 
   const hasMiao = (s: string) => s.includes("喵")
@@ -181,9 +199,9 @@ function enrichCatTone(
   let reasonB = sanitize(data.reasonB)
   let leaning = sanitize(data.leaning)
 
-  reasonA = addMiaoFlavor(reasonA, "喵，小猫闻了闻，")
+  reasonA = addMiaoFlavor(reasonA, "喵，小猫想了想，")
   leaning = `喵！小猫更偏向「${leanOption}」。${emotionPhrase}${leaning}`
-  leaning = ensureZhLeaningEndsWithDotBang(leaning)
+  leaning = ensureZhLeaningEndingNatural(leaning)
 
   const miaoCount = [reasonA, reasonB, leaning].filter(hasMiao).length
   if (miaoCount < 2) {

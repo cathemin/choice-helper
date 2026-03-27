@@ -56,7 +56,7 @@ function buildClarifyPrompt(lang: "zh" | "en") {
       "- If there are many options, cluster them into two representative directions (the most meaningful/contrasting pair).",
       "- Option names must be representative of their whole cluster, not just one original item.",
       "- Option names must be concise and practical.",
-      "- Cat tone requirement: in reasonA and reasonB, include a subtle cat phrase like 'meow' or 'paw' exactly once total across both reasons (keep it light).",
+      "- Cat tone requirement: in reasonA and reasonB, include a subtle cat phrase like 'meow' or 'paw' (keep it light).",
       "- Each reason should be 1-3 short sentences.",
       "- Keep a subtle cat tone (light meow/paw style is okay) but stay clear.",
       "Return strict JSON only:",
@@ -74,7 +74,7 @@ function buildClarifyPrompt(lang: "zh" | "en") {
     "- 如果选项很多，优先做“归类/压缩”：把相近的念头并到同一边；再找与它最对立的那一边。",
     "- option1/option2 的命名要代表整一类，而不是只复述某一个最先出现的选项。",
     "- 选项名要简短清楚，便于比较。",
-    "- 猫味要求：reasonA 与 reasonB 合计至少出现一次“喵”，但不要刷屏；也可以轻微加一个颜文字（克制使用）。",
+    "- 猫味要求：reasonA 与 reasonB 合计至少出现一次“喵”，但不要刷屏。",
     "- 每个理由控制在 1-3 句。",
     "- 语气有一点小猫感即可，重点是清晰。",
     "只返回严格 JSON：",
@@ -82,43 +82,16 @@ function buildClarifyPrompt(lang: "zh" | "en") {
   ].join("\n")
 }
 
-function detectClarifyEmotionHint(question: string): "sad" | "achieve" | "neutral" {
-  const q = (question || "").toString()
-  const sad = /伤心|难过|崩溃|失落|委屈|哭|眼泪|绝望/i.test(q)
-  const achieve = /成功|完成|通过|赢|胜利|获得|拿奖|很棒|太厉害|做到了/i.test(q)
-  if (sad) return "sad"
-  if (achieve) return "achieve"
-  return "neutral"
-}
-
 function ensureClarifyCatTone(
   payload: { option1: string; option2: string; reasonA: string; reasonB: string },
-  lang: "zh" | "en",
-  question: string
+  lang: "zh" | "en"
 ) {
-  const emotion = detectClarifyEmotionHint(question)
-  const kaomoji = "(=^.^=)"
-
   if (lang === "en") {
-    const hasCat = /meow|paw/i.test(payload.reasonA) || /meow|paw/i.test(payload.reasonB)
-    const sadPhrase = `Meow—hang in there ${kaomoji}, `
-    const achievePhrase = `Meow, congrats ${kaomoji}. `
-    const basePhrase = emotion === "sad" ? sadPhrase : emotion === "achieve" ? achievePhrase : "Meow—"
-
     let reasonA = payload.reasonA.trim()
     let reasonB = payload.reasonB.trim()
 
     if (!/meow|paw/i.test(reasonA) && !/meow|paw/i.test(reasonB)) {
-      reasonA = `${basePhrase}${reasonA}`
-    } else if (emotion !== "neutral" && !/meow|paw/i.test(reasonA)) {
-      reasonA = `${basePhrase}${reasonA}`
-    } else if (emotion !== "neutral") {
-      reasonA = `${reasonA}`
-    }
-
-    // Keep it subtle: only add the cat vibe once.
-    if (hasCat) {
-      // no-op
+      reasonA = `Meow—${reasonA}`
     }
 
     return { ...payload, reasonA, reasonB }
@@ -128,16 +101,8 @@ function ensureClarifyCatTone(
   let reasonA = payload.reasonA.trim()
   let reasonB = payload.reasonB.trim()
 
-  if (emotion === "sad") {
-    if (!reasonA.includes("喵")) reasonA = `喵，小猫先抱抱你 ${kaomoji}，${reasonA}`
-    else reasonA = `喵，${reasonA}`
-  } else if (emotion === "achieve") {
-    if (!reasonA.includes("喵")) reasonA = `喵，小猫悄悄鼓掌 ${kaomoji}，${reasonA}`
-    else reasonA = `喵，${reasonA}`
-  } else {
-    if (!reasonA.includes("喵") && !reasonB.includes("喵")) reasonA = `喵，${reasonA}`
-    else if (!reasonA.includes("喵")) reasonA = `喵，${reasonA}`
-  }
+  if (!reasonA.includes("喵") && !reasonB.includes("喵")) reasonA = `喵，${reasonA}`
+  else if (!reasonA.includes("喵")) reasonA = `喵，${reasonA}`
 
   // Ensure at least one "喵" exists across both reasons.
   if (!reasonA.includes("喵") && !reasonB.includes("喵")) {
@@ -166,7 +131,7 @@ async function callDeepSeekForClarify(question: string) {
         const parsed = parseJsonObject(resp.choices?.[0]?.message?.content ?? "")
         const normalized = normalizeClarifyPayload(parsed)
         if (!normalized) throw new Error("Invalid clarify payload shape")
-        return ensureClarifyCatTone(normalized, lang, question)
+        return ensureClarifyCatTone(normalized, lang)
       } catch (e) {
         lastError = e
       }

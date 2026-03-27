@@ -19,7 +19,7 @@ export function SiteFooter() {
           >
             {t(
               "小猫只会给你小猫角度的建议，然后你自己拍板哟",
-              "Decison Cat offers a cat-flavored perspective, and then you make the final call, meow."
+              "Decison Cat offers a cat-flavored perspective, but you make the final call!"
             )}
           </p>
           <p 
@@ -27,6 +27,12 @@ export function SiteFooter() {
             style={{ fontFamily: titleFont }}
           >
             {t("决策喵", "Decision Cat")} · 2026
+          </p>
+          <p
+            className="text-xs text-muted-foreground"
+            style={{ fontFamily: titleFont }}
+          >
+            {t("创作者：Catherine Min", "Created by Catherine Min")}
           </p>
         </div>
       </div>
