@@ -8,6 +8,19 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 [Continue working on v0 →](https://v0.app/chat/projects/prj_vtsFsJUBjlTpWdrbQH3FJaoEvjY3)
 
+## 云端运行（不依赖本机 `pnpm dev`）
+
+站点可以部署到 **Vercel**，用户只打开线上地址即可；AI 在服务端 API Route 里调用 DeepSeek。
+
+1. 把本仓库推到 GitHub（若 `git push` 失败，多为网络连不上 `github.com:443`，可换热点或配置代理后再推）。
+2. 打开 [Vercel](https://vercel.com) → **Add New Project** → Import 该仓库。
+3. Framework 选 **Next.js**，Build 用默认 `pnpm install` + `pnpm build`（或 `npm run build`）。
+4. 在 **Settings → Environment Variables** 添加：
+   - `DEEPSEEK_API_KEY` = 你的 DeepSeek API Key（Production / Preview 按需勾选）。
+5. 保存后 **Redeploy** 一次。
+
+部署成功后，线上地址即可访问；无需在本地长期开着开发服务器。
+
 ## Getting Started
 
 First, run the development server:
