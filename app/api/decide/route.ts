@@ -70,6 +70,16 @@ function buildSystemPrompt(): string {
   ].join("\n")
 }
 
+/** uiLang=en 时去掉中日韩等字符，防止模型在英文界面混入中文倾向句 */
+function scrubNonLatinScriptsForEnglishUi(s: string): string {
+  if (!s) return s
+  let out = s.replace(/\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}/gu, " ")
+  out = out.replace(/[\u3001-\u303f\uff08-\uff09\uff0c\uff0e\uff1f\uff1a\uff1b]/g, " ")
+  out = out.replace(/\s{2,}/g, " ").trim()
+  out = out.replace(/\s+([.!?,;:])/g, "$1")
+  return out.trim()
+}
+
 function sanitizeDecisionPlaceholders(
   data: Record<string, string>,
   lang: "zh" | "en"
@@ -82,8 +92,13 @@ function sanitizeDecisionPlaceholders(
   const safeOption1 = data.option1.replace(optionTokenRe, "").replace(cnOptionTokenRe, "").trim() || (lang === "en" ? "Option A" : "选项A")
   const safeOption2 = data.option2.replace(optionTokenRe, "").replace(cnOptionTokenRe, "").trim() || (lang === "en" ? "Option B" : "选项B")
 
-  const option1 = safeOption1
-  const option2 = safeOption2
+  const option1 =
+    lang === "en" ? scrubNonLatinScriptsForEnglishUi(safeOption1).trim() || "Option A" : safeOption1
+  const option2 =
+    lang === "en" ? scrubNonLatinScriptsForEnglishUi(safeOption2).trim() || "Option B" : safeOption2
+
+  const enFallbackReason = "Meow! This side feels like a good first step!"
+  const zhFallbackReason = "喵——这边像是更好的起点。"
 
   const replaceOptionTokens = (s: string) => {
     let out = s
@@ -92,16 +107,34 @@ function sanitizeDecisionPlaceholders(
     // Last-resort: remove any remaining option tokens (avoid showing "option几")
     out = out.replace(optionTokenRe, "")
     out = out.replace(/\s{2,}/g, " ").trim()
-    return out || (lang === "en" ? "Meow—this side feels like a good first step." : "喵——这边像是更好的起点。")
+    return out || (lang === "en" ? enFallbackReason : zhFallbackReason)
   }
+
+  const reasonA = replaceOptionTokens(data.reasonA)
+  const reasonB = replaceOptionTokens(data.reasonB)
+  const leaning = replaceOptionTokens(data.leaning)
+
+  if (lang !== "en") {
+    return {
+      ...data,
+      option1,
+      option2,
+      reasonA,
+      reasonB,
+      leaning,
+    }
+  }
+
+  const enLeanFallback =
+    "Decison Cat would boop this side first with a soft paw! One tiny step is enough, meow!"
 
   return {
     ...data,
-    option1: safeOption1,
-    option2: safeOption2,
-    reasonA: replaceOptionTokens(data.reasonA),
-    reasonB: replaceOptionTokens(data.reasonB),
-    leaning: replaceOptionTokens(data.leaning),
+    option1,
+    option2,
+    reasonA: scrubNonLatinScriptsForEnglishUi(reasonA).trim() || enFallbackReason,
+    reasonB: scrubNonLatinScriptsForEnglishUi(reasonB).trim() || enFallbackReason,
+    leaning: scrubNonLatinScriptsForEnglishUi(leaning).trim() || enLeanFallback,
   }
 }
 
@@ -270,6 +303,29 @@ function resolveLeanToward(
   return "option2"
 }
 
+/** 避免情绪块与后文首字黏连（如 ^ω^小猫） */
+function zhGlueBlocks(left: string, right: string): string {
+  if (!right) return left
+  if (!left) return right
+  if (/[。！？…，、；：\s]$/.test(left)) return left + right
+  if (/^[。！？…，、「『（\s]/.test(right)) return left + right
+  return `${left.replace(/\s+$/g, "")}。${right.replace(/^\s+/g, "")}`
+}
+
+function enGlueBlocks(left: string, right: string): string {
+  if (!right) return left
+  if (!left) return right
+  const L = left.replace(/\s+$/g, "")
+  const R = right.replace(/^\s+/g, "")
+  if (!R) return left
+  if (!L) return right
+  if (/[.!?]$/.test(L)) return `${L} ${R}`
+  if (/[,;:]$/.test(L)) return `${L} ${R}`
+  if (/[\s)]$/.test(left)) return left + right
+  if (/^[.!?,;:'"(\s]/.test(R)) return left + right
+  return `${L} ${R}`
+}
+
 function enrichCatTone(
   data: Record<string, string>,
   lang: "zh" | "en",
@@ -294,52 +350,52 @@ function enrichCatTone(
     }
 
     const weaveEmotionEn = (emo: string, base: string) => {
-      const e = emo.trimEnd()
-      if (!e) return base
+      const e = emo.replace(/^\s+/, "")
+      if (!e.trim()) return base
       const r = Math.random()
-      if (r < 0.34) return `${e}${base}`
-      if (r < 0.67) return `${base} ${e}`
+      if (r < 0.34) return enGlueBlocks(e, base)
+      if (r < 0.67) return enGlueBlocks(base, e)
       const dot = base.indexOf(".")
-      if (dot === -1) return `${e}${base}`
-      return `${base.slice(0, dot + 1)} ${e}${base.slice(dot + 1)}`
+      if (dot === -1) return enGlueBlocks(e, base)
+      return `${base.slice(0, dot + 1)} ${enGlueBlocks(e, base.slice(dot + 1))}`
     }
 
     const emotion = resolveEmotionTone(data.emotionTone, question)
     const emotionPhrase =
       emotion === "sad"
-        ? `Hang in there ${pickKaomoji(KAOMOJI_EN.sad)} `
+        ? `Hang in there! ${pickKaomoji(KAOMOJI_EN.sad)} `
         : emotion === "achieve"
-          ? `Congrats ${pickKaomoji(KAOMOJI_EN.achieve)} `
+          ? `Congrats! ${pickKaomoji(KAOMOJI_EN.achieve)} `
           : emotion === "confused"
-            ? `It's okay to feel tangled ${pickKaomoji(KAOMOJI_EN.confused)} `
+            ? `It's okay to feel tangled! ${pickKaomoji(KAOMOJI_EN.confused)} `
             : emotion === "angry"
-              ? `Take one slow breath first ${pickKaomoji(KAOMOJI_EN.angry)} `
+              ? `Take one slow breath first! ${pickKaomoji(KAOMOJI_EN.angry)} `
               : emotion === "excited"
-                ? `Love that energy ${pickKaomoji(KAOMOJI_EN.excited)} `
+                ? `Love that energy! ${pickKaomoji(KAOMOJI_EN.excited)} `
                 : ""
 
-    const leanBase = `Decison Cat leans a little toward "${leanOption}". ${data.leaning}`
+    const leanBase = `Decison Cat leans toward "${leanOption}"! ${data.leaning}`
     const leanWithMeow = hasMeow(leanBase)
       ? leanBase
       : Math.random() < 0.5
-        ? `Decison Cat leans a little toward "${leanOption}", meow. ${data.leaning}`
-        : `Meow—Decison Cat leans a little toward "${leanOption}". ${data.leaning}`
+        ? `Decison Cat leans toward "${leanOption}", meow! ${data.leaning}`
+        : `Meow! Decison Cat leans toward "${leanOption}"! ${data.leaning}`
 
     return {
       ...data,
       reasonA: ensurePurr(data.reasonA, [
-        "This side feels steadier and easier to start with, meow.",
-        "Meow—this side feels steadier to start with.",
-        "Steadier side to start, meow.",
+        "This side feels steadier and easier to start with, meow!",
+        "Paw on the steadier side first! Easier to begin here!",
+        "Steadier side to start! Good sunspot energy!",
       ]),
       reasonB: ensurePurr(data.reasonB, [
-        "This side looks exciting, though a bit less predictable—meow.",
-        "Meow—exciting side, a bit less predictable.",
-        "Exciting option here, meow.",
+        "This side looks exciting, a bit wild, meow! Like a new cardboard box!",
+        "Ooh, exciting side! Less predictable, more zoomies!",
+        "Exciting option here! Chase the shiny thing!",
       ]),
       leaning: ensurePurr(
         weaveEmotionEn(emotionPhrase, leanWithMeow),
-        ["This side is the better starting point, meow.", "Meow—good starting point here."]
+        ["This side is the better starting paw-print, meow!", "Good place to land a paw first!"]
       ),
     }
   }
@@ -377,14 +433,14 @@ function enrichCatTone(
   }
   /** 情绪可出现在句首、句末或第一句之后 */
   const weaveEmotionZh = (emo: string, base: string) => {
-    const e = emo.trimEnd()
-    if (!e) return base
+    const e = emo.replace(/^\s+/, "")
+    if (!e.trim()) return base
     const r = Math.random()
-    if (r < 0.34) return `${e}${base}`
-    if (r < 0.67) return `${base}${e}`
+    if (r < 0.34) return zhGlueBlocks(e, base)
+    if (r < 0.67) return zhGlueBlocks(base, e)
     const dot = base.indexOf("。")
-    if (dot === -1) return `${e}${base}`
-    return `${base.slice(0, dot + 1)}${e}${base.slice(dot + 1)}`
+    if (dot === -1) return zhGlueBlocks(e, base)
+    return `${base.slice(0, dot + 1)}${zhGlueBlocks(e, base.slice(dot + 1))}`
   }
 
   const banPhrases = [/轻轻推一把/g, /轻轻用尾巴点点这边/g, /尾巴点点这边/g]
@@ -496,7 +552,7 @@ async function callDeepSeek(question: string, lang: "zh" | "en") {
       role: "system" as const,
       content:
         lang === "en"
-          ? "uiLang=en. All user-facing strings in JSON (options, reasons, leaning, invalid messages) must be English only, regardless of the user's input language. Include leanToward as exactly option1 or option2. Include emotionTone as one of: sad, achieve, confused, angry, excited, neutral (English keys only)."
+          ? "uiLang=en. All user-facing strings in JSON (options, reasons, leaning, invalid messages) must be English only, regardless of the user's input language. Do not output any Chinese/Japanese/Korean characters in those values! Not even a short extra sentence. Include leanToward as exactly option1 or option2. Include emotionTone as one of: sad, achieve, confused, angry, excited, neutral (English keys only). English cat voice: a bit more playful and whiskery (paws, sunbeams, boxes are fine in small doses). Prefer exclamation marks for warmth and energy! Do not use em dashes (—); use commas, periods, or ! instead."
           : "uiLang=zh。JSON 里所有面向用户的字符串（选项、理由、倾向、invalid 的 message）必须全部是中文，与用户输入语种无关。leanToward 必须是 option1 或 option2 之一。emotionTone 必须是 sad、achieve、confused、angry、excited、neutral 之一（键名固定英文小写）。",
     },
     { role: "user" as const, content: question },
@@ -538,8 +594,9 @@ async function coerceTooFewToDecision(question: string, lang: "zh" | "en") {
           "The user gave a single-direction dilemma. Convert it into a valid binary decision.",
           "Return strict JSON only:",
           `{ "mode":"decision","option1":"...","option2":"...","reasonA":"...","reasonB":"...","leaning":"...","leanToward":"option1 or option2","emotionTone":"sad|achieve|confused|angry|excited|neutral" }`,
-          "Tone: gentle, slightly playful cat persona, not preachy.",
+          "Tone: playful cat advisor, cozy but clear, not preachy! A little paw-and-whisker energy is good.",
           "emotionTone: infer the user's emotional situation from their message.",
+          "Style: use ! more than long dashes. Do not use em dash (—) in JSON text; use . , or !",
           "Keep response in English.",
         ].join("\n")
       : [
@@ -577,9 +634,10 @@ async function coerceTooFewToDecision(question: string, lang: "zh" | "en") {
       mode: "decision",
       option1: "Do it now",
       option2: "Not for now",
-      reasonA: "If you do it now, you'll stop overthinking and get immediate clarity.",
-      reasonB: "If you wait, you'll protect your energy and leave room to reassess calmly.",
-      leaning: "If Decison Cat has to tap one side with a paw, Decison Cat slightly leans to doing it now—just one small step first.",
+      reasonA: "Do it now and you swap the spiral in your head for real clarity, meow!",
+      reasonB: "Wait a beat and you keep your energy cozy! Room to rethink with fresh whiskers later!",
+      leaning:
+        "Decison Cat would tap do it now first with one paw! Just one small step, then see how it feels!",
     }
   }
 
@@ -605,7 +663,7 @@ export async function POST(request: Request) {
           mode: "error",
           message:
             uiLang === "en"
-              ? "Tell Decison Cat what you're struggling with first."
+              ? "Tell Decison Cat what you're stuck on first, meow!"
               : "先告诉小猫你在纠结什么吧。",
         },
         { status: 400 }
@@ -617,7 +675,7 @@ export async function POST(request: Request) {
           mode: "error",
           message:
             uiLang === "en"
-              ? "Decison Cat got distracted—please try again."
+              ? "Decison Cat got distracted! Please try again, meow!"
               : "小猫刚刚走神了，再试一次吧。",
         },
         { status: 500 }
@@ -638,7 +696,7 @@ export async function POST(request: Request) {
         mode: "error",
         message:
           uiLang === "en"
-            ? "Decison Cat got distracted—please try again."
+            ? "Decison Cat got distracted! Please try again, meow!"
             : "小猫刚刚走神了，再试一次吧。",
       },
       { status: 500 }

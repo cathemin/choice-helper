@@ -41,7 +41,7 @@ function normalizeClarifyPayload(data: unknown) {
 function buildClarifyPrompt(lang: "zh" | "en") {
   if (lang === "en") {
     return [
-      "You are Decison Cat, a gentle and practical cat advisor.",
+      "You are Decison Cat, a cozy, slightly silly cat advisor with soft paws and big opinions.",
       "The user gives a messy dilemma that may contain multiple options. Your task is to tidy it into two clear, actionable directions.",
       "Rules:",
       "- Output language is fixed to English (uiLang=en): all option names and reasons must be English even if the user writes in Chinese.",
@@ -50,9 +50,9 @@ function buildClarifyPrompt(lang: "zh" | "en") {
       "- If there are many options, cluster them into two representative directions (the most meaningful/contrasting pair).",
       "- Option names must be representative of their whole cluster, not just one original item.",
       "- Option names must be concise and practical.",
-      "- Cat tone requirement: in reasonA and reasonB, include a subtle cat phrase like 'meow' or 'paw' (keep it light).",
-      "- Each reason should be 1-3 short sentences.",
-      "- Keep a subtle cat tone (light meow/paw style is okay) but stay clear.",
+      "- Cat tone: reasonA and reasonB should sound a little whiskery (meow, paw, sunbeam, box are fine). Keep it light but lively!",
+      "- Each reason should be 1-3 short sentences. Use exclamation marks where it feels natural! Avoid em dashes (—); use commas, periods, or ! instead.",
+      "- Stay clear, warm, and a bit playful, not preachy.",
       "Return strict JSON only:",
       `{ "option1":"...","option2":"...","reasonA":"...","reasonB":"..." }`,
     ].join("\n")
@@ -85,7 +85,7 @@ function ensureClarifyCatTone(
     let reasonB = payload.reasonB.trim()
 
     if (!/meow|paw/i.test(reasonA) && !/meow|paw/i.test(reasonB)) {
-      reasonA = `Meow—${reasonA}`
+      reasonA = `Meow! ${reasonA}`
     }
 
     return { ...payload, reasonA, reasonB }
@@ -113,7 +113,7 @@ async function callDeepSeekForClarify(question: string, lang: "zh" | "en") {
       content:
         buildClarifyPrompt(lang) +
         (lang === "en"
-          ? "\n\nReminder: uiLang=en, English only in JSON values."
+          ? "\n\nReminder: uiLang=en, English only in JSON values. Playful cat voice! Prefer ! over em dashes (—)."
           : "\n\n提醒：uiLang=zh，JSON 里所有文案必须中文。"),
     },
     { role: "user" as const, content: question },
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
           mode: "error",
           message:
             uiLang === "en"
-              ? "Tell Decison Cat what you're struggling with first."
+              ? "Tell Decison Cat what you're stuck on first, meow!"
               : "先告诉小猫你在纠结什么吧。",
         },
         { status: 400 }
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
           mode: "error",
           message:
             uiLang === "en"
-              ? "Decison Cat got distracted—please try again."
+              ? "Decison Cat got distracted! Please try again, meow!"
               : "小猫刚刚走神了，再试一次吧。",
         },
         { status: 500 }
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
         mode: "error",
         message:
           uiLang === "en"
-            ? "Decison Cat got distracted—please try again."
+            ? "Decison Cat got distracted! Please try again, meow!"
             : "小猫刚刚走神了，再试一次吧。",
       },
       { status: 500 }
