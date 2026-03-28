@@ -140,10 +140,10 @@ export default function DecidePage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-8 md:py-10">
+    <main className="bg-background px-4 py-6 md:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-8 relative">
+        <header className="text-center mb-6 relative">
           <SketchQuestionMark className="absolute -left-12 top-8 w-10 h-20 text-muted-foreground hidden md:block" />
           <SketchQuestionMark className="absolute -right-12 top-8 w-10 h-20 text-muted-foreground hidden md:block" />
 

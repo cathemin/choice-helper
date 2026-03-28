@@ -42,10 +42,10 @@ export default function AboutPage() {
   )
 
   return (
-    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-12">
+    <main className="bg-background px-4 py-6 md:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-16">
+        <header className="text-center mb-12">
           <div className="flex justify-center mb-6">
             <CatFace className="w-24 h-24 text-foreground" />
           </div>

@@ -71,10 +71,10 @@ export default function ClarifyPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-8 md:py-10">
+    <main className="bg-background px-4 py-6 md:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-8 relative">
+        <header className="text-center mb-6 relative">
           <div className="flex justify-center mb-4">
             <CatFace className="w-20 h-20 text-foreground" />
           </div>

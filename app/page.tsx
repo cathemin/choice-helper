@@ -11,9 +11,9 @@ export default function HomePage() {
   const bodyFont = language === "zh" ? undefined : "var(--font-body-en)"
 
   return (
-    <main className="min-h-[calc(100vh-200px)] bg-background">
+    <main className="bg-background">
       {/* Hero Section */}
-      <section className="px-4 py-20 md:py-32">
+      <section className="px-4 pt-16 md:pt-28 pb-16 md:pb-28">
         <div className="max-w-2xl mx-auto text-center relative">
           <SketchQuestionMark className="absolute -left-16 top-0 w-12 h-24 text-muted-foreground hidden lg:block" />
           <SketchQuestionMark className="absolute -right-16 top-0 w-12 h-24 text-muted-foreground hidden lg:block" />
@@ -67,10 +67,10 @@ export default function HomePage() {
       </section>
 
       {/* Feature Cards Section */}
-      <section className="px-4 py-16 border-t-2 border-foreground">
+      <section className="px-4 pt-10 md:pt-12 pb-14 md:pb-16 border-t-2 border-foreground">
         <div className="max-w-4xl mx-auto">
           <h2 
-            className="text-2xl font-bold text-center mb-12"
+            className="text-2xl font-bold text-center mb-8"
             style={{ fontFamily: titleFont }}
           >
             {t("小猫可以帮你做什么", "What Can the Cat Do?")}
@@ -80,8 +80,8 @@ export default function HomePage() {
             {/* Card 1: Decide */}
             <Link href="/decide" className="group">
               <div className="border-2 border-foreground p-6 bg-card h-full transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_var(--foreground)]">
-                <div className="flex justify-center mb-4">
-                  <SketchQuestionMark className="w-12 h-24 text-foreground" />
+                <div className="flex h-16 items-center justify-center mb-4 shrink-0">
+                  <SketchQuestionMark className="w-8 h-16 text-foreground" />
                 </div>
                 <h3 
                   className="text-xl font-bold mb-2 text-center"
@@ -101,7 +101,7 @@ export default function HomePage() {
             {/* Card 2: Clarify */}
             <Link href="/clarify" className="group">
               <div className="border-2 border-foreground p-6 bg-card h-full transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_var(--foreground)]">
-                <div className="flex justify-center mb-4">
+                <div className="flex h-16 items-center justify-center mb-4 shrink-0">
                   <FishTreat className="w-16 h-16 text-foreground" />
                 </div>
                 <h3 
@@ -122,7 +122,7 @@ export default function HomePage() {
             {/* Card 3: About */}
             <Link href="/about" className="group">
               <div className="border-2 border-foreground p-6 bg-card h-full transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_var(--foreground)]">
-                <div className="flex justify-center mb-4">
+                <div className="flex h-16 items-center justify-center mb-4 shrink-0">
                   <CatFace className="w-16 h-16 text-foreground" />
                 </div>
                 <h3 
