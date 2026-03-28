@@ -1,4 +1,9 @@
 import OpenAI from "openai"
+import {
+  gibberishTeaseMessage,
+  isLikelyKeyboardMashOrGibberish,
+  isTrivialPlaceholderQuestion,
+} from "@/lib/question-guards"
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY?.trim() || ""
 
@@ -35,10 +40,12 @@ function buildSystemPrompt(): string {
     "",
     "判断标准（由你完成，不要让程序用关键词/规则判断）：",
     "1) 如果用户输入中可以明确提取出两个方向，即使不是标准“还是/or/要不要”句式，也可以视为有效二选一。",
-    "2) 如果输入包含太多选项，无法自然压缩成两个选项，则返回无效：invalidType=too_many。",
+    "2) 如果输入包含太多**并列**选项、无法自然压缩成两个方向，则返回无效：invalidType=too_many。",
     "3) 如果用户只给了一个动作/方向，但可自然构造成“做/不做（去/不去、继续/暂停）”这种二元选择，则仍然视为有效 decision。",
     "4) 只有在确实无法构造成对立选项时，才返回 invalidType=too_few。",
-    "4) 如果表达太模糊，看不出具体在选什么，则返回无效：invalidType=unclear。",
+    "5) 如果表达太模糊，看不出具体在选什么，则返回无效：invalidType=unclear。",
+    "6) 若用户只给出无生活内容的代号（如单独的 a/b、纯符号、看不出在选什么真实事物），**禁止**编造“活泼/稳重”等理由，必须返回 invalidType=too_few。",
+    "7) 若用户已明确在**两个命名方向**之间二选一（例如刚用「理清」得到两个短标题，再来比较这两者），即使每个标题背后曾对应多个原始选项，也视为有效二选一，**不要**返回 too_many；仅当句子里仍出现三个及以上**不可合并的并列名词性选项**时才用 too_many。",
     "",
     "语言要求（必须遵守，优先级高于用户输入语种）：",
     "- 客户端会告知界面语言 uiLang。",
@@ -126,7 +133,7 @@ function sanitizeDecisionPlaceholders(
   }
 
   const enLeanFallback =
-    "Decison Cat would boop this side first with a soft paw! One tiny step is enough, meow!"
+    "Decision Cat would boop this side first with a soft paw! One tiny step is enough, meow!"
 
   return {
     ...data,
@@ -374,12 +381,12 @@ function enrichCatTone(
                 ? `Love that energy! ${pickKaomoji(KAOMOJI_EN.excited)} `
                 : ""
 
-    const leanBase = `Decison Cat leans toward "${leanOption}"! ${data.leaning}`
+    const leanBase = `Decision Cat leans toward "${leanOption}"! ${data.leaning}`
     const leanWithMeow = hasMeow(leanBase)
       ? leanBase
       : Math.random() < 0.5
-        ? `Decison Cat leans toward "${leanOption}", meow! ${data.leaning}`
-        : `Meow! Decison Cat leans toward "${leanOption}"! ${data.leaning}`
+        ? `Decision Cat leans toward "${leanOption}", meow! ${data.leaning}`
+        : `Meow! Decision Cat leans toward "${leanOption}"! ${data.leaning}`
 
     return {
       ...data,
@@ -512,7 +519,8 @@ function normalizePayload(data: unknown): Record<string, string> | null {
 
   if (d.mode === "invalid") {
     if (typeof d.invalidType !== "string" || typeof d.message !== "string") return null
-    if (!["too_many", "too_few", "unclear"].includes(d.invalidType)) return null
+    // gibberish：仅服务端短路返回；若模型误填也可解析，避免整次请求失败
+    if (!["too_many", "too_few", "unclear", "gibberish"].includes(d.invalidType)) return null
     return {
       mode: "invalid",
       invalidType: d.invalidType,
@@ -637,7 +645,7 @@ async function coerceTooFewToDecision(question: string, lang: "zh" | "en") {
       reasonA: "Do it now and you swap the spiral in your head for real clarity, meow!",
       reasonB: "Wait a beat and you keep your energy cozy! Room to rethink with fresh whiskers later!",
       leaning:
-        "Decison Cat would tap do it now first with one paw! Just one small step, then see how it feels!",
+        "Decision Cat would tap do it now first with one paw! Just one small step, then see how it feels!",
     }
   }
 
@@ -663,11 +671,28 @@ export async function POST(request: Request) {
           mode: "error",
           message:
             uiLang === "en"
-              ? "Tell Decison Cat what you're stuck on first, meow!"
+              ? "Tell Decision Cat what you're stuck on first, meow!"
               : "先告诉小猫你在纠结什么吧。",
         },
         { status: 400 }
       )
+    }
+    if (isTrivialPlaceholderQuestion(question)) {
+      return Response.json({
+        mode: "invalid",
+        invalidType: "too_few",
+        message:
+          uiLang === "en"
+            ? "Decision Cat needs two real choices with a little context, meow! What are you actually picking between?"
+            : "小猫还没听懂你在选什么具体的事呢…用平常话说说这两个选择各是什么吧！",
+      })
+    }
+    if (isLikelyKeyboardMashOrGibberish(question)) {
+      return Response.json({
+        mode: "invalid",
+        invalidType: "gibberish",
+        message: gibberishTeaseMessage(uiLang),
+      })
     }
     if (!DEEPSEEK_API_KEY) {
       return Response.json(
@@ -675,8 +700,8 @@ export async function POST(request: Request) {
           mode: "error",
           message:
             uiLang === "en"
-              ? "Decison Cat got distracted! Please try again, meow!"
-              : "小猫刚刚走神了，再试一次吧。",
+              ? "Can't reach the AI service yet. If you host this app, set DEEPSEEK_API_KEY in the environment, meow!"
+              : "暂时连不上智能服务。若是你自己部署的站点，请在环境里配置 DEEPSEEK_API_KEY。",
         },
         { status: 500 }
       )
@@ -696,7 +721,7 @@ export async function POST(request: Request) {
         mode: "error",
         message:
           uiLang === "en"
-            ? "Decison Cat got distracted! Please try again, meow!"
+            ? "Decision Cat got distracted! Please try again, meow!"
             : "小猫刚刚走神了，再试一次吧。",
       },
       { status: 500 }

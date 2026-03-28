@@ -25,7 +25,7 @@ export default function ClarifyPage() {
   const handleClarify = async () => {
     if (!text.trim()) {
       setResults(null)
-      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decison Cat what you're stuck on first, meow!"))
+      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decision Cat what you're stuck on first, meow!"))
       return
     }
 
@@ -38,8 +38,16 @@ export default function ClarifyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: text.trim(), uiLang: language }),
       })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
       const data = await resp.json()
+      if (!resp.ok) {
+        setResults(null)
+        setStatusMessage(
+          typeof data.message === "string" && data.message
+            ? data.message
+            : t("小猫刚刚走神了，再试一次吧。", "Decision Cat got distracted! Please try again, meow!")
+        )
+        return
+      }
       if (
         data?.mode !== "clarify" ||
         typeof data.option1 !== "string" ||
@@ -56,7 +64,7 @@ export default function ClarifyPage() {
       setStatusMessage("")
     } catch {
       setResults(null)
-      setStatusMessage(t("小猫刚刚走神了，再试一次吧。", "Decison Cat got distracted! Please try again, meow!"))
+      setStatusMessage(t("小猫刚刚走神了，再试一次吧。", "Decision Cat got distracted! Please try again, meow!"))
     } finally {
       setIsAnalyzing(false)
     }
@@ -109,7 +117,7 @@ export default function ClarifyPage() {
               style={{ fontFamily: titleFont }}
             >
               {isAnalyzing
-                ? t("小猫正在整理…", "Decison Cat is sorting it out...")
+                ? t("小猫正在整理…", "Decision Cat is sorting it out...")
                 : t("帮我理清", "Help Me Clarify")}
             </Button>
             <FishTreat className="absolute -left-20 top-1/2 -translate-y-1/2 w-14 h-7 text-muted-foreground hidden sm:block" />
@@ -140,7 +148,7 @@ export default function ClarifyPage() {
             {/* Continue to Decide */}
             <div className="text-center pt-8 border-t-2 border-muted">
               <p className="text-muted-foreground mb-4 text-sm" style={{ fontFamily: bodyFont }}>
-                {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let Decison Cat help you decide!")}
+                {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let Decision Cat help you decide!")}
               </p>
               <div className="mt-3">
                 <Link

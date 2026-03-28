@@ -35,7 +35,7 @@ export default function HomePage() {
           >
             {t(
               "人，纠结一定让你很苦恼吧，小猫来帮你啦！",
-              "Hey human, being tangled up is exhausting, right? Decison Cat is here to help, meow!"
+              "Hey human, being tangled up is exhausting, right? Decision Cat is here to help, meow!"
             )}
           </p>
           
@@ -113,7 +113,7 @@ export default function HomePage() {
                 <p className="text-sm text-muted-foreground text-center" style={{ fontFamily: bodyFont }}>
                   {t(
                     "一团纠结？小猫帮你整理成两个清晰的方向。",
-                    "A tangled mess? Decison Cat helps sort it into two clear paths."
+                    "A tangled mess? Decision Cat helps sort it into two clear paths."
                   )}
                 </p>
               </div>
@@ -134,7 +134,7 @@ export default function HomePage() {
                 <p className="text-sm text-muted-foreground text-center" style={{ fontFamily: bodyFont }}>
                   {t(
                     "了解小猫的理念：小猫不会强势地替你做决定，毕竟，人，你比小猫聪明嘛。",
-                    " Decision Cat won't decide for you, after all, you're smarter than cats."
+                    "Decision Cat won't decide for you, after all, you're smarter than cats."
                   )}
                 </p>
               </div>

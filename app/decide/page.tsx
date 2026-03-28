@@ -27,7 +27,7 @@ export default function DecidePage() {
     if (!text.trim()) {
       setResults([])
       setShowClarifyCta(false)
-      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decison Cat what you're stuck on first, meow!"))
+      setStatusMessage(t("先告诉小猫你在纠结什么吧。", "Tell Decision Cat what you're stuck on first, meow!"))
       return
     }
 
@@ -41,10 +41,22 @@ export default function DecidePage() {
         body: JSON.stringify({ question: text.trim(), uiLang: language }),
       })
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const data = await resp.json()
+      const data = await resp.json().catch(() => null)
+      if (!data || typeof data !== "object") throw new Error("Invalid response shape")
 
-      if (!data || typeof data.mode !== "string") throw new Error("Invalid response shape")
+      if (!resp.ok) {
+        setResults([])
+        setShowClarifyCta(false)
+        setStatusMessage(
+          typeof (data as { message?: unknown }).message === "string" &&
+            (data as { message: string }).message.trim()
+            ? (data as { message: string }).message
+            : t("小猫刚刚走神了，再试一次吧。", "The cat got distracted! Please try again, meow!")
+        )
+        return
+      }
+
+      if (typeof (data as { mode?: unknown }).mode !== "string") throw new Error("Invalid response shape")
 
       if (data.mode === "decision") {
         if (
@@ -72,7 +84,7 @@ export default function DecidePage() {
           let out = s
           out = out.replace(/option\s*1/gi, safeOption1Title).replace(/option\s*2/gi, safeOption2Title)
           out = out.replace(/option\s*[12]/gi, "").replace(/\s{2,}/g, " ").trim()
-          return out || (language === "zh" ? "喵——小猫稍微偏向更合适的那边。" : "Meow! Decison Cat slightly leans toward what fits better!")
+          return out || (language === "zh" ? "喵——小猫稍微偏向更合适的那边。" : "Meow! Decision Cat slightly leans toward what fits better!")
         }
 
         setResults(
@@ -150,7 +162,7 @@ export default function DecidePage() {
           >
             {t(
               "把你的纠结告诉小猫，它会帮你做出选择。",
-              "Tell Decison Cat your dilemma! It'll help you pick a paw-print to land on."
+              "Tell Decision Cat your dilemma! It'll help you pick a paw-print to land on."
             )}
           </p>
         </header>
@@ -161,8 +173,8 @@ export default function DecidePage() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t(
-              "写下你的纠结，比如：我要选A还是选B？",
-              "Write your dilemma, e.g.: Should I choose A or B?"
+              "写下你的纠结，比如：喝牛奶还是吃小鱼干？",
+              "Write your dilemma, e.g.: Drink milk or eat little fish treats?"
             )}
             aria-label={t("输入你的纠结", "Enter your dilemma")}
             className="min-h-[160px] border-2 border-foreground bg-card text-foreground placeholder:text-muted-foreground focus:shadow-[4px_4px_0_0_var(--foreground)] transition-shadow resize-none text-base p-6"
@@ -198,7 +210,7 @@ export default function DecidePage() {
                 className="bg-background text-foreground border-2 border-foreground px-4 py-2 text-sm font-bold hover:bg-foreground hover:text-background transition-all hover:shadow-[4px_4px_0_0_var(--foreground)]"
                 style={{ fontFamily: titleFont }}
               >
-                {t("选项有点乱？先让小猫帮你理清", "Too tangled? Let Decison Cat sort it out first, meow!")}
+                {t("选项有点乱？先让小猫帮你理清", "Too tangled? Let Decision Cat sort it out first, meow!")}
               </Button>
             </Link>
           </div>
