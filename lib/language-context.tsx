@@ -33,7 +33,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const toggleLanguage = () => {
     const newLang = language === "zh" ? "en" : "zh"
-    // 即便 hydration 状态异常，也确保用户点击后可以立即切换文案
+    // 即便 hydration 状态异常，也确保人点击后可以立即切换文案
     setIsHydrated(true)
     setLanguage(newLang)
     try {

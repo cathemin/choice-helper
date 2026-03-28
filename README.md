@@ -10,7 +10,7 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 ## 云端运行（不依赖本机 `pnpm dev`）
 
-站点可以部署到 **Vercel**，用户只打开线上地址即可；AI 在服务端 API Route 里调用 DeepSeek。
+站点可以部署到 **Vercel**，人只打开线上地址即可；AI 在服务端 API Route 里调用 DeepSeek。
 
 1. 把本仓库推到 GitHub（若 `git push` 失败，多为网络连不上 `github.com:443`，可换热点或配置代理后再推）。
 2. 打开 [Vercel](https://vercel.com) → **Add New Project** → Import 该仓库。
