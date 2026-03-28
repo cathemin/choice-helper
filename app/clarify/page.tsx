@@ -71,10 +71,10 @@ export default function ClarifyPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-12">
+    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-8 md:py-10">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-12 relative">
+        <header className="text-center mb-8 relative">
           <div className="flex justify-center mb-4">
             <CatFace className="w-20 h-20 text-foreground" />
           </div>
@@ -85,7 +85,7 @@ export default function ClarifyPage() {
             {t("让小猫帮你理清", "Let the Cat Clarify")}
           </h1>
           <p
-            className="text-muted-foreground mt-4 text-lg"
+            className="text-muted-foreground mt-3 text-lg"
             style={{ fontFamily: bodyFont ?? titleFont }}
           >
             {t("把一团纠结整理成两个方向", "Sort a tangled mess into two directions")}
@@ -93,7 +93,7 @@ export default function ClarifyPage() {
         </header>
 
         {/* Textarea */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -108,7 +108,7 @@ export default function ClarifyPage() {
         </div>
 
         {/* Button */}
-        <div className="flex justify-center mb-12">
+        <div className="flex justify-center mb-4">
           <div className="relative">
             <Button
               onClick={handleClarify}
@@ -125,13 +125,13 @@ export default function ClarifyPage() {
           </div>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground min-h-6 mb-4" style={{ fontFamily: bodyFont }}>
+        <p className="text-center text-sm text-muted-foreground min-h-6" style={{ fontFamily: bodyFont }}>
           {statusMessage}
         </p>
 
         {/* Result Cards */}
         {results && (
-          <div className="mt-16 space-y-8">
+          <div className="mt-2 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <SketchCard
                 title={results[0].title}
@@ -146,7 +146,7 @@ export default function ClarifyPage() {
             </div>
 
             {/* Continue to Decide */}
-            <div className="text-center pt-8 border-t-2 border-muted">
+            <div className="text-center pt-6 border-t-2 border-muted">
               <p className="text-muted-foreground mb-4 text-sm" style={{ fontFamily: bodyFont }}>
                 {t("理清了？现在可以让小猫帮你做决定", "Cleared up? Now let Decision Cat help you decide!")}
               </p>

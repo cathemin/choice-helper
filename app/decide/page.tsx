@@ -140,10 +140,10 @@ export default function DecidePage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-12">
+    <main className="min-h-[calc(100vh-200px)] bg-background px-4 py-8 md:py-10">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-12 relative">
+        <header className="text-center mb-8 relative">
           <SketchQuestionMark className="absolute -left-12 top-8 w-10 h-20 text-muted-foreground hidden md:block" />
           <SketchQuestionMark className="absolute -right-12 top-8 w-10 h-20 text-muted-foreground hidden md:block" />
 
@@ -157,7 +157,7 @@ export default function DecidePage() {
             {t("让小猫帮你决定", "Let the Cat Decide")}
           </h1>
           <p
-            className="text-muted-foreground mt-4 text-lg"
+            className="text-muted-foreground mt-3 text-lg"
             style={{ fontFamily: bodyFont ?? titleFont }}
           >
             {t(
@@ -168,7 +168,7 @@ export default function DecidePage() {
         </header>
 
         {/* Textarea with solid border */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -183,7 +183,7 @@ export default function DecidePage() {
         </div>
 
         {/* Button */}
-        <div className="flex justify-center mb-12">
+        <div className="flex justify-center mb-4">
           <div className="relative">
             <Button
               onClick={handleAnalyze}
@@ -218,7 +218,7 @@ export default function DecidePage() {
 
         {/* Result Cards */}
         {results.length > 0 && (
-          <div className="mt-16 space-y-6">
+          <div className="mt-2 space-y-6">
             {/* A and B reasons side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <SketchCard
