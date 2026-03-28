@@ -202,19 +202,18 @@ function enrichCatTone(
       /meow|purr|paw/i.test(text) ? text : `${text} ${fallback}`
 
     const emotion = question ? detectEmotionHint(question) : "neutral"
-    const face = pickKaomoji(KAOMOJI_EN[emotion])
     const emotionPhrase =
       emotion === "sad"
-        ? `Meow—hang in there ${face} `
+        ? `Meow—hang in there ${pickKaomoji(KAOMOJI_EN.sad)} `
         : emotion === "achieve"
-          ? `Meow, congrats ${face} `
+          ? `Meow, congrats ${pickKaomoji(KAOMOJI_EN.achieve)} `
           : emotion === "confused"
-            ? `Meow, it's okay to feel tangled ${face} `
+            ? `Meow, it's okay to feel tangled ${pickKaomoji(KAOMOJI_EN.confused)} `
             : emotion === "angry"
-              ? `Meow, take one slow breath first ${face} `
+              ? `Meow, take one slow breath first ${pickKaomoji(KAOMOJI_EN.angry)} `
               : emotion === "excited"
-                ? `Meow, love that energy ${face} `
-                : `Meow ${face} `
+                ? `Meow, love that energy ${pickKaomoji(KAOMOJI_EN.excited)} `
+                : ""
 
     return {
       ...data,
@@ -228,19 +227,18 @@ function enrichCatTone(
   }
 
   const emotion = question ? detectEmotionHint(question) : "neutral"
-  const face = pickKaomoji(KAOMOJI_ZH[emotion])
   const emotionPhrase =
     emotion === "sad"
-      ? `小猫抱抱 ${face}，`
+      ? `小猫抱抱 ${pickKaomoji(KAOMOJI_ZH.sad)}，`
       : emotion === "achieve"
-        ? `小猫悄悄鼓掌 ${face}，`
+        ? `小猫悄悄鼓掌 ${pickKaomoji(KAOMOJI_ZH.achieve)}，`
         : emotion === "confused"
-          ? `小猫挠挠头 ${face}，懂这种乱糟糟的感觉，`
+          ? `小猫挠挠头 ${pickKaomoji(KAOMOJI_ZH.confused)}，懂这种乱糟糟的感觉，`
           : emotion === "angry"
-            ? `小猫先陪你缓一口气 ${face}，`
+            ? `小猫先陪你缓一口气 ${pickKaomoji(KAOMOJI_ZH.angry)}，`
             : emotion === "excited"
-              ? `小猫也有点兴奋起来了 ${face}，`
-              : `小猫眨眨眼 ${face}，`
+              ? `小猫也有点兴奋起来了 ${pickKaomoji(KAOMOJI_ZH.excited)}，`
+              : ""
 
   const hasMiao = (s: string) => s.includes("喵")
   const addMiaoFlavor = (s: string, phrase: string) => (hasMiao(s) ? s : `${phrase}${s}`)
