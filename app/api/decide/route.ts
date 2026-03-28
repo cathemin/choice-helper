@@ -414,7 +414,7 @@ function enrichCatTone(
       : emotion === "achieve"
         ? `小猫悄悄鼓掌 ${pickKaomoji(KAOMOJI_ZH.achieve)} `
         : emotion === "confused"
-          ? `小猫挠挠头 ${pickKaomoji(KAOMOJI_ZH.confused)}，懂这种乱糟糟的感觉 `
+          ? `小猫挠挠头 ${pickKaomoji(KAOMOJI_ZH.confused)} `
           : emotion === "angry"
             ? `小猫先陪你缓一口气 ${pickKaomoji(KAOMOJI_ZH.angry)} `
             : emotion === "excited"
