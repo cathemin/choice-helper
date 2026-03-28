@@ -12,12 +12,6 @@ const clientV1 = new OpenAI({
   baseURL: "https://api.deepseek.com/v1",
 })
 
-function detectLanguage(question: string): "zh" | "en" {
-  const zhCount = (question.match(/[\u4e00-\u9fff]/g) || []).length
-  const enCount = (question.match(/[A-Za-z]/g) || []).length
-  return enCount > zhCount ? "en" : "zh"
-}
-
 function parseJsonObject(content: string): unknown {
   const raw = (content || "").trim()
   try {
@@ -50,7 +44,7 @@ function buildClarifyPrompt(lang: "zh" | "en") {
       "You are Decison Cat, a gentle and practical cat advisor.",
       "The user gives a messy dilemma that may contain multiple options. Your task is to tidy it into two clear, actionable directions.",
       "Rules:",
-      "- Keep the same language as the user (English here).",
+      "- Output language is fixed to English (uiLang=en): all option names and reasons must be English even if the user writes in Chinese.",
       "- Do not give final decision or preference.",
       "- IMPORTANT: Do NOT pick the first two items you see. You must decide the two directions by grouping the dilemma into two competing values/axes, regardless of the original order.",
       "- If there are many options, cluster them into two representative directions (the most meaningful/contrasting pair).",
@@ -68,7 +62,7 @@ function buildClarifyPrompt(lang: "zh" | "en") {
     "你是决策喵，一只温和、实用的小猫顾问。",
     "用户会给一团比较混乱的纠结，可能夹杂多个选项/多个顾虑。你的任务是把它整理成两个清晰、可执行的方向。",
     "规则：",
-    "- 保持和用户同语言（这里用中文）。",
+    "- 输出语言固定为中文（uiLang=zh）：即使用户用英文写纠结，option1/option2/reasonA/reasonB 也必须全部是中文。",
     "- 不要直接替用户做最终决定。",
     "- 重点：不要“按出现顺序取前两个”。你必须先抓住核心矛盾/价值轴，再把所有选项归并成两大类（两大类最能对立、最有代表性）。",
     "- 如果选项很多，优先做“归类/压缩”：把相近的念头并到同一边；再找与它最对立的那一边。",
@@ -112,10 +106,16 @@ function ensureClarifyCatTone(
   return { ...payload, reasonA, reasonB }
 }
 
-async function callDeepSeekForClarify(question: string) {
-  const lang = detectLanguage(question)
+async function callDeepSeekForClarify(question: string, lang: "zh" | "en") {
   const messages = [
-    { role: "system" as const, content: buildClarifyPrompt(lang) },
+    {
+      role: "system" as const,
+      content:
+        buildClarifyPrompt(lang) +
+        (lang === "en"
+          ? "\n\nReminder: uiLang=en, English only in JSON values."
+          : "\n\n提醒：uiLang=zh，JSON 里所有文案必须中文。"),
+    },
     { role: "user" as const, content: question },
   ]
 
@@ -141,22 +141,50 @@ async function callDeepSeekForClarify(question: string) {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json().catch(() => ({}))
-    const question = typeof body?.question === "string" ? body.question.trim() : ""
+  const body = await request.json().catch(() => ({}))
+  const uiLang: "zh" | "en" = body?.uiLang === "en" ? "en" : "zh"
+  const question = typeof body?.question === "string" ? body.question.trim() : ""
 
+  try {
     if (!question) {
-      return Response.json({ mode: "error", message: "先告诉小猫你在纠结什么吧。" }, { status: 400 })
+      return Response.json(
+        {
+          mode: "error",
+          message:
+            uiLang === "en"
+              ? "Tell Decison Cat what you're struggling with first."
+              : "先告诉小猫你在纠结什么吧。",
+        },
+        { status: 400 }
+      )
     }
     if (!DEEPSEEK_API_KEY) {
-      return Response.json({ mode: "error", message: "小猫刚刚走神了，再试一次吧。" }, { status: 500 })
+      return Response.json(
+        {
+          mode: "error",
+          message:
+            uiLang === "en"
+              ? "Decison Cat got distracted—please try again."
+              : "小猫刚刚走神了，再试一次吧。",
+        },
+        { status: 500 }
+      )
     }
 
-    const data = await callDeepSeekForClarify(question)
+    const data = await callDeepSeekForClarify(question, uiLang)
     return Response.json({ mode: "clarify", ...data })
   } catch (e) {
     console.error("[api/clarify] failed:", e)
-    return Response.json({ mode: "error", message: "小猫刚刚走神了，再试一次吧。" }, { status: 500 })
+    return Response.json(
+      {
+        mode: "error",
+        message:
+          uiLang === "en"
+            ? "Decison Cat got distracted—please try again."
+            : "小猫刚刚走神了，再试一次吧。",
+      },
+      { status: 500 }
+    )
   }
 }
 

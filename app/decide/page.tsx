@@ -38,7 +38,7 @@ export default function DecidePage() {
       const resp = await fetch("/api/decide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text.trim() }),
+        body: JSON.stringify({ question: text.trim(), uiLang: language }),
       })
 
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)

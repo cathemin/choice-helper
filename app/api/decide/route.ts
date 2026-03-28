@@ -40,14 +40,16 @@ function buildSystemPrompt(): string {
     "4) 只有在确实无法构造成对立选项时，才返回 invalidType=too_few。",
     "4) 如果表达太模糊，看不出具体在选什么，则返回无效：invalidType=unclear。",
     "",
-    "语言要求：",
-    "- 必须与用户输入语言保持一致（中文输入返回中文；英文输入返回英文）。",
-    "- 不要把英文问题回复成中文，也不要把中文问题回复成英文。",
+    "语言要求（必须遵守，优先级高于用户输入语种）：",
+    "- 客户端会告知界面语言 uiLang。",
+    "- uiLang=zh 时：JSON 里所有面向用户的文字（option1/option2/reasonA/reasonB/leaning）必须全部是中文，即使用户整段用英文提问也要用中文写。",
+    "- uiLang=en 时：上述字段必须全部是英文，即使用户用中文提问也要用英文写。",
+    "- invalid 的 message 也必须与 uiLang 一致。",
     "",
     "输出要求：必须严格返回 JSON，不要有任何额外文本。",
     "",
     "当有效二选一时，返回：",
-    `{ "mode":"decision","option1":"选项1","option2":"选项2","reasonA":"这一边的理由","reasonB":"另一边的理由","leaning":"小猫的轻微倾向" }`,
+    `{ "mode":"decision","option1":"选项1","option2":"选项2","reasonA":"这一边的理由","reasonB":"另一边的理由","leaning":"小猫的轻微倾向（自然语言，不要机械重复选项名）","leanToward":"option1 或 option2（必填；必须与 leaning 的真实倾向一致；禁止总是 option1，请诚实根据理由判断）" }`,
     "",
     "当无效时，返回：",
     `{ "mode":"invalid","invalidType":"too_many|too_few|unclear","message":"给用户看的小猫提示文案" }`,
@@ -109,10 +111,79 @@ function detectEmotionHint(question: string): "sad" | "achieve" | "confused" | "
   return "neutral"
 }
 
+/** 每次请求随机挑一个，克制、不刷屏 */
+function pickKaomoji(pool: string[]): string {
+  return pool[Math.floor(Math.random() * pool.length)] ?? pool[0] ?? "(=^.^=)"
+}
+
+const KAOMOJI_EN: Record<ReturnType<typeof detectEmotionHint>, string[]> = {
+  neutral: ["(=^.^=)", "(=・ω・=)", ":3", ":D", "^_^", "^0^", "meow~"],
+  sad: ["(=^.^=)", "('・ω・`)", "(｡•́︿•̀｡)", "(T_T)", ":("],
+  achieve: ["(=^.^=)", ":D", "^_^", "^0^", "=^･ω･^=", ":3"],
+  confused: ["(・_・?)", "(・・)?", "(^_^;)", "(´・ω・`)?", "(￣ω￣?)"],
+  angry: ["(｀д´)", "(￣ヘ￣)", "(눈_눈)", ">:("],
+  excited: ["(=^･^=)", ":D", "^0^", "\\(^o^)/", "^_^"],
+}
+
+const KAOMOJI_ZH: Record<ReturnType<typeof detectEmotionHint>, string[]> = {
+  neutral: ["(=・ω・=)", "(=^.^=)", "(・ω・)", "^ω^", ":D", "^0^"],
+  sad: ["(=^.^=)", "(｡•́︿•̀｡)", "(つ﹏⊂)", "(｡í _ ì｡)", "T_T"],
+  achieve: ["(=^.^=)", "^0^", ":D", "^ω^", "(ﾉ´▽｀)ﾉ"],
+  confused: ["(・_・?)", "(・・)?", "(´･ω･`)?", "(￣▽￣?)", "(^_^;)"],
+  angry: ["(눈_눈)", "(￣ー￣)", "(｀д´)", ">:("],
+  excited: ["^0^", ":D", "(ﾉ´▽｀)ﾉ", "^ω^", "(=^･^=)"],
+}
+
 function ensureZhLeaningEndingNatural(s: string): string {
   const trimmed = (s || "").toString().trim()
   const core = trimmed.replace(/[。！？!?！]+$/g, "").trim()
   return core ? `${core}。` : "喵！小猫更偏向你更合适的那边。"
+}
+
+/** Resolve which option the model says it leans toward; avoid defaulting to option1. */
+function resolveLeanToward(
+  data: Record<string, string>
+): "option1" | "option2" {
+  const raw = (data as { leanToward?: string }).leanToward
+  if (raw === "option2" || raw === "option1") return raw
+
+  const leaning = (data.leaning || "").toString()
+  const o1 = (data.option1 || "").trim()
+  const o2 = (data.option2 || "").trim()
+  let score1 = 0
+  let score2 = 0
+  if (o1 && leaning.includes(o1)) score1 += 6
+  if (o2 && leaning.includes(o2)) score2 += 6
+  const low = leaning.toLowerCase()
+  if (o1 && low.includes(o1.toLowerCase())) score1 += 2
+  if (o2 && low.includes(o2.toLowerCase())) score2 += 2
+  // Chinese hints for "the other / second"
+  if (/后者|另一边|那边|第二个|选项\s*2|方案二|B\s*这|更倾向.*二/i.test(leaning)) score2 += 4
+  if (/前者|这一边|这边|第一个|选项\s*1|方案一|A\s*这|更倾向.*一/i.test(leaning)) score1 += 4
+  // English hints
+  if (/\bsecond\b|\boption\s*2\b|\bthe\s+other\b|\blatter\b/i.test(low)) score2 += 3
+  if (/\bfirst\b|\boption\s*1\b|\bformer\b/i.test(low)) score1 += 3
+
+  if (score2 > score1) return "option2"
+  if (score1 > score2) return "option1"
+  // Tie: do not always pick option1 — alternate feels wrong; re-read length overlap
+  const overlap = (s: string, sub: string) => {
+    if (!sub || sub.length < 2) return 0
+    let n = 0
+    for (let len = Math.min(sub.length, 12); len >= 2; len--) {
+      const head = sub.slice(0, len)
+      if (s.includes(head)) {
+        n = len
+        break
+      }
+    }
+    return n
+  }
+  const a = overlap(leaning, o1)
+  const b = overlap(leaning, o2)
+  if (b > a) return "option2"
+  if (a > b) return "option1"
+  return "option2"
 }
 
 function enrichCatTone(
@@ -122,68 +193,54 @@ function enrichCatTone(
 ): Record<string, string> {
   if (data.mode !== "decision") return data
 
-  if (lang === "en") {
-    const pickLeanOption = (text: string) => {
-      const t = (text || "").toLowerCase()
-      if (data.option1 && t.includes(data.option1.toLowerCase())) return data.option1
-      if (data.option2 && t.includes(data.option2.toLowerCase())) return data.option2
-      return data.option1
-    }
+  const toward = resolveLeanToward(data)
+  const leanOption = toward === "option2" ? data.option2 : data.option1
 
+  if (lang === "en") {
     // Keep English natural while adding a subtle cat persona.
     const ensurePurr = (text: string, fallback: string) =>
       /meow|purr|paw/i.test(text) ? text : `${text} ${fallback}`
 
-    const leanOption = pickLeanOption(data.leaning)
-
     const emotion = question ? detectEmotionHint(question) : "neutral"
-    const kaomoji = "(=^.^=)"
+    const face = pickKaomoji(KAOMOJI_EN[emotion])
     const emotionPhrase =
       emotion === "sad"
-        ? `Meow—hang in there ${kaomoji} `
+        ? `Meow—hang in there ${face} `
         : emotion === "achieve"
-          ? `Meow, congrats ${kaomoji} `
+          ? `Meow, congrats ${face} `
           : emotion === "confused"
-            ? `Meow, it's okay to feel tangled ${kaomoji} `
+            ? `Meow, it's okay to feel tangled ${face} `
             : emotion === "angry"
-              ? `Meow, take one slow breath first ${kaomoji} `
+              ? `Meow, take one slow breath first ${face} `
               : emotion === "excited"
-                ? `Meow, love that energy ${kaomoji} `
-          : ""
+                ? `Meow, love that energy ${face} `
+                : `Meow ${face} `
 
     return {
       ...data,
       reasonA: ensurePurr(data.reasonA, "Meow, this side feels steadier and easier to start with!"),
       reasonB: ensurePurr(data.reasonB, "Meow—this side looks exciting, though a bit less predictable!"),
       leaning: ensurePurr(
-        `${emotionPhrase}Meow! Decison Cat leans toward "${leanOption}". ${data.leaning}`,
+        `${emotionPhrase}Decison Cat leans a little toward "${leanOption}". ${data.leaning}`,
         "Meow, this side is the better starting point!"
       ),
     }
   }
 
-  const pickLeanOptionZh = (text: string) => {
-    const t = (text || "").toString()
-    if (data.option1 && t.includes(data.option1)) return data.option1
-    if (data.option2 && t.includes(data.option2)) return data.option2
-    return data.option1
-  }
-
-  const leanOption = pickLeanOptionZh(data.leaning)
   const emotion = question ? detectEmotionHint(question) : "neutral"
-  const kaomoji = "(=^.^=)"
+  const face = pickKaomoji(KAOMOJI_ZH[emotion])
   const emotionPhrase =
     emotion === "sad"
-      ? `小猫抱抱 ${kaomoji}，`
+      ? `小猫抱抱 ${face}，`
       : emotion === "achieve"
-        ? `小猫悄悄鼓掌 ${kaomoji}，`
+        ? `小猫悄悄鼓掌 ${face}，`
         : emotion === "confused"
-          ? `小猫懂这种乱糟糟的感觉 ${kaomoji}，`
+          ? `小猫挠挠头 ${face}，懂这种乱糟糟的感觉，`
           : emotion === "angry"
-            ? `小猫先陪你缓一口气 ${kaomoji}，`
+            ? `小猫先陪你缓一口气 ${face}，`
             : emotion === "excited"
-              ? `小猫也有点兴奋起来了 ${kaomoji}，`
-        : ""
+              ? `小猫也有点兴奋起来了 ${face}，`
+              : `小猫眨眨眼 ${face}，`
 
   const hasMiao = (s: string) => s.includes("喵")
   const addMiaoFlavor = (s: string, phrase: string) => (hasMiao(s) ? s : `${phrase}${s}`)
@@ -200,7 +257,7 @@ function enrichCatTone(
   let leaning = sanitize(data.leaning)
 
   reasonA = addMiaoFlavor(reasonA, "喵，小猫想了想，")
-  leaning = `喵！小猫更偏向「${leanOption}」。${emotionPhrase}${leaning}`
+  leaning = `${emotionPhrase}喵！小猫更偏向「${leanOption}」。${leaning}`
   leaning = ensureZhLeaningEndingNatural(leaning)
 
   const miaoCount = [reasonA, reasonB, leaning].filter(hasMiao).length
@@ -214,12 +271,6 @@ function enrichCatTone(
     reasonB,
     leaning,
   }
-}
-
-function detectLanguage(question: string): "zh" | "en" {
-  const zhCount = (question.match(/[\u4e00-\u9fff]/g) || []).length
-  const enCount = (question.match(/[A-Za-z]/g) || []).length
-  return enCount > zhCount ? "en" : "zh"
 }
 
 function parseJsonObject(content: string): unknown {
@@ -243,6 +294,10 @@ function normalizePayload(data: unknown): Record<string, string> | null {
     for (const key of keys) {
       if (typeof d[key] !== "string") return null
     }
+    let leanToward: "option1" | "option2" | undefined
+    if (d.leanToward === "option1" || d.leanToward === "option2") {
+      leanToward = d.leanToward
+    }
     return {
       mode: "decision",
       option1: d.option1 as string,
@@ -250,6 +305,7 @@ function normalizePayload(data: unknown): Record<string, string> | null {
       reasonA: d.reasonA as string,
       reasonB: d.reasonB as string,
       leaning: d.leaning as string,
+      ...(leanToward ? { leanToward } : {}),
     }
   }
 
@@ -278,16 +334,21 @@ function hasPlaceholderLeak(data: Record<string, string>): boolean {
   })
 }
 
-async function callDeepSeek(question: string) {
-  const lang = detectLanguage(question)
+function stripLeanTowardForResponse(data: Record<string, string>): Record<string, string> {
+  if (data.mode !== "decision") return data
+  const { leanToward: _lt, ...rest } = data as Record<string, string> & { leanToward?: string }
+  return rest as Record<string, string>
+}
+
+async function callDeepSeek(question: string, lang: "zh" | "en") {
   const messages = [
     { role: "system" as const, content: buildSystemPrompt() },
     {
       role: "system" as const,
       content:
         lang === "en"
-          ? "Output must be English. Keep all fields and tones in English."
-          : "输出必须使用中文，所有字段内容都使用中文。",
+          ? "uiLang=en. All user-facing strings in JSON (options, reasons, leaning, invalid messages) must be English only, regardless of the user's input language. Include leanToward as exactly option1 or option2."
+          : "uiLang=zh。JSON 里所有面向用户的字符串（选项、理由、倾向、invalid 的 message）必须全部是中文，与用户输入语种无关。leanToward 必须是 option1 或 option2 之一。",
     },
     { role: "user" as const, content: question },
   ]
@@ -311,7 +372,7 @@ async function callDeepSeek(question: string) {
         const sanitized = sanitizeDecisionPlaceholders(normalized, lang)
         if (hasPlaceholderLeak(sanitized)) throw new Error("Template placeholder still leaked in output")
 
-        return enrichCatTone(sanitized, lang, question)
+        return stripLeanTowardForResponse(enrichCatTone(sanitized, lang, question))
       } catch (e) {
         lastError = e
       }
@@ -320,8 +381,7 @@ async function callDeepSeek(question: string) {
   throw lastError ?? new Error("DeepSeek call failed")
 }
 
-async function coerceTooFewToDecision(question: string) {
-  const lang = detectLanguage(question)
+async function coerceTooFewToDecision(question: string, lang: "zh" | "en") {
   const prompt =
     lang === "en"
       ? [
@@ -383,28 +443,55 @@ async function coerceTooFewToDecision(question: string) {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json().catch(() => ({}))
-    const question = typeof body?.question === "string" ? body.question.trim() : ""
+  const body = await request.json().catch(() => ({}))
+  const uiLang: "zh" | "en" = body?.uiLang === "en" ? "en" : "zh"
+  const question = typeof body?.question === "string" ? body.question.trim() : ""
 
+  try {
     if (!question) {
-      return Response.json({ mode: "error", message: "先告诉小猫你在纠结什么吧。" }, { status: 400 })
+      return Response.json(
+        {
+          mode: "error",
+          message:
+            uiLang === "en"
+              ? "Tell Decison Cat what you're struggling with first."
+              : "先告诉小猫你在纠结什么吧。",
+        },
+        { status: 400 }
+      )
     }
     if (!DEEPSEEK_API_KEY) {
-      return Response.json({ mode: "error", message: "小猫刚刚走神了，再试一次吧。" }, { status: 500 })
+      return Response.json(
+        {
+          mode: "error",
+          message:
+            uiLang === "en"
+              ? "Decison Cat got distracted—please try again."
+              : "小猫刚刚走神了，再试一次吧。",
+        },
+        { status: 500 }
+      )
     }
 
-    const data = await callDeepSeek(question)
+    const data = await callDeepSeek(question, uiLang)
     if (data.mode === "invalid" && data.invalidType === "too_few") {
-      const coerced = await coerceTooFewToDecision(question)
-      const lang = detectLanguage(question)
-      const sanitized = sanitizeDecisionPlaceholders(coerced, lang)
-      return Response.json(enrichCatTone(sanitized, lang, question))
+      const coerced = await coerceTooFewToDecision(question, uiLang)
+      const sanitized = sanitizeDecisionPlaceholders(coerced, uiLang)
+      return Response.json(stripLeanTowardForResponse(enrichCatTone(sanitized, uiLang, question)))
     }
     return Response.json(data)
   } catch (e) {
     console.error("[api/decide] failed:", e)
-    return Response.json({ mode: "error", message: "小猫刚刚走神了，再试一次吧。" }, { status: 500 })
+    return Response.json(
+      {
+        mode: "error",
+        message:
+          uiLang === "en"
+            ? "Decison Cat got distracted—please try again."
+            : "小猫刚刚走神了，再试一次吧。",
+      },
+      { status: 500 }
+    )
   }
 }
 

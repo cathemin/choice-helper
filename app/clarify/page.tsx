@@ -36,7 +36,7 @@ export default function ClarifyPage() {
       const resp = await fetch("/api/clarify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text.trim() }),
+        body: JSON.stringify({ question: text.trim(), uiLang: language }),
       })
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
       const data = await resp.json()
