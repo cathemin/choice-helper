@@ -49,7 +49,16 @@ function buildSystemPrompt(): string {
     "输出要求：必须严格返回 JSON，不要有任何额外文本。",
     "",
     "当有效二选一时，返回：",
-    `{ "mode":"decision","option1":"选项1","option2":"选项2","reasonA":"这一边的理由","reasonB":"另一边的理由","leaning":"小猫的轻微倾向（自然语言，不要机械重复选项名）","leanToward":"option1 或 option2（必填；必须与 leaning 的真实倾向一致；禁止总是 option1，请诚实根据理由判断）" }`,
+    `{ "mode":"decision","option1":"选项1","option2":"选项2","reasonA":"这一边的理由","reasonB":"另一边的理由","leaning":"小猫的轻微倾向（自然语言，不要机械重复选项名）","leanToward":"option1 或 option2（必填；必须与 leaning 的真实倾向一致；禁止总是 option1，请诚实根据理由判断）","emotionTone":"sad|achieve|confused|angry|excited|neutral（必填，见下）" }`,
+    "",
+    "emotionTone（必填，由你根据用户整体处境判断，勿照抄字面词；与 JSON 其他字段语言无关，固定用这六个英文小写值之一）：",
+    "- sad：需要陪伴与安慰、失落、受伤、被拒/挫败感重、难过到沉重",
+    "- achieve：值得恭喜与庆祝、上岸/录取/做成、成就感与好消息",
+    "- confused：纠结、拿不准、信息乱、两种都难取舍",
+    "- angry：明显生气、憋屈、火大（非开玩笑）",
+    "- excited：兴奋、期待、开心有冲劲",
+    "- neutral：情绪负荷不重、平常二选一",
+    "若实在吃不准，用 neutral。",
     "",
     "当无效时，返回：",
     `{ "mode":"invalid","invalidType":"too_many|too_few|unclear","message":"给用户看的小猫提示文案" }`,
@@ -96,14 +105,89 @@ function sanitizeDecisionPlaceholders(
   }
 }
 
-function detectEmotionHint(question: string): "sad" | "achieve" | "confused" | "angry" | "excited" | "neutral" {
+type EmotionTone = "sad" | "achieve" | "confused" | "angry" | "excited" | "neutral"
+
+const EMOTION_TONE_SET: ReadonlySet<string> = new Set([
+  "sad",
+  "achieve",
+  "confused",
+  "angry",
+  "excited",
+  "neutral",
+])
+
+/** 解析模型输出的情绪标签；无法识别则返回 null，由规则兜底 */
+function parseModelEmotionTone(raw: unknown): EmotionTone | null {
+  if (typeof raw !== "string") return null
+  const v = raw.trim().replace(/^["']|["']$/g, "").toLowerCase().replace(/\s+/g, "_")
+  if (EMOTION_TONE_SET.has(v)) return v as EmotionTone
+  const alias: Record<string, EmotionTone> = {
+    happy: "excited",
+    joy: "excited",
+    joyful: "excited",
+    celebration: "achieve",
+    celebrate: "achieve",
+    congrats: "achieve",
+    congratulations: "achieve",
+    frustrated: "angry",
+    frustration: "angry",
+    annoyed: "angry",
+    uncertain: "confused",
+    unsure: "confused",
+    ambivalent: "confused",
+    calm: "neutral",
+    flat: "neutral",
+    grief: "sad",
+    comfort: "sad",
+    supportive: "sad",
+  }
+  return alias[v] ?? null
+}
+
+function resolveEmotionTone(modelField: string | undefined, question?: string): EmotionTone {
+  const fromModel = modelField ? parseModelEmotionTone(modelField) : null
+  if (fromModel) return fromModel
+  return question ? detectEmotionHint(question) : "neutral"
+}
+
+function detectEmotionHint(question: string): EmotionTone {
   const q = (question || "").toString()
+  const low = q.toLowerCase()
+
   const sad = /伤心|难过|崩溃|失落|郁闷|委屈|哭|眼泪|绝望|很痛|心痛/i.test(q)
+  /**
+   * 申请/升学失意——触发安慰（小猫抱抱等），与恭喜分支互斥。
+   * 用具体说法，避免误伤「没有被拒」这类否定句。
+   */
+  const uniDowner =
+    /没录取|没被录|没录上|落榜|拒信|收到拒信|全是拒信|被拒了|被拒绝了|申请被拒|把我拒了|秒拒|没考上|考不上|调剂失败|全聚德|滑档|退档|零offer|没有offer|未录取|申请失败|waitlist.*拒|defer.*拒|梦校.*拒了我|学校.*拒了我/i.test(
+      q
+    ) ||
+    /rejected from|denied admission|didn'?t get (in|accepted)|failed to get into|rejection letter|got rejected|was rejected|turned down(\s+by)?|reject(ed)? from/i.test(
+      low
+    )
+
+  /** 考上大学、拿 offer、选志愿/选校——小猫恭喜、鼓掌、兴奋类 */
+  const uniCelebrate =
+    /被录取|录取通知书|录取通知|录取了|保研|考研上岸|留学上岸|终于上岸|收到[^，。]{0,10}offer|拿到[^，。]{0,10}offer|选大学|择校|选校|报志愿|填志愿|志愿填报|哪所(大学|学校)|哪个(大学|学校)|本科志愿|研究生录取|留学选校|两所(大学|学校)|两个(大学|学校).{0,6}选|清华|北大|985|211|藤校|ivy/i.test(
+      q
+    ) ||
+    /(?<![没莫难])考上(了)?(大学|研究生|研)/i.test(q) ||
+    /\bcollege acceptance\b|\bgot into\b|\badmitted (to|into)\b|\buniversity offer\b|\baccepted (to|into)\b/i.test(
+      low
+    ) ||
+    /\bchoose (a |which |between )?(university|college|school)\b|\bchoosing (a |which |between )?(universities|colleges|schools)\b|\bwhich (university|college)\b/i.test(
+      low
+    )
+
   const achieve = /成功|完成|通过|拿到|赢|胜利|获得|拿奖|做到了|很棒|太厉害|拿下/i.test(q)
   const confused = /纠结|迷茫|不知道|拿不准|不确定|懵|confused|unsure|uncertain|lost/i.test(q)
   const angry = /生气|愤怒|火大|烦死|气死|不爽|angry|mad|furious|annoyed/i.test(q)
   const excited = /激动|兴奋|好开心|热血|上头|迫不及待|excited|thrilled|pumped/i.test(q)
+
   if (sad) return "sad"
+  if (uniDowner) return "sad"
+  if (uniCelebrate) return Math.random() < 0.55 ? "achieve" : "excited"
   if (achieve) return "achieve"
   if (angry) return "angry"
   if (excited) return "excited"
@@ -116,7 +200,7 @@ function pickKaomoji(pool: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)] ?? pool[0] ?? "(=^.^=)"
 }
 
-const KAOMOJI_EN: Record<ReturnType<typeof detectEmotionHint>, string[]> = {
+const KAOMOJI_EN: Record<EmotionTone, string[]> = {
   neutral: ["(=^.^=)", "(=・ω・=)", ":3", ":D", "^_^", "^0^", "meow~"],
   sad: ["(=^.^=)", "('・ω・`)", "(｡•́︿•̀｡)", "(T_T)", ":("],
   achieve: ["(=^.^=)", ":D", "^_^", "^0^", "=^･ω･^=", ":3"],
@@ -125,7 +209,7 @@ const KAOMOJI_EN: Record<ReturnType<typeof detectEmotionHint>, string[]> = {
   excited: ["(=^･^=)", ":D", "^0^", "\\(^o^)/", "^_^"],
 }
 
-const KAOMOJI_ZH: Record<ReturnType<typeof detectEmotionHint>, string[]> = {
+const KAOMOJI_ZH: Record<EmotionTone, string[]> = {
   neutral: ["(=・ω・=)", "(=^.^=)", "(・ω・)", "^ω^", ":D", "^0^"],
   sad: ["(=^.^=)", "(｡•́︿•̀｡)", "(つ﹏⊂)", "(｡í _ ì｡)", "T_T"],
   achieve: ["(=^.^=)", "^0^", ":D", "^ω^", "(ﾉ´▽｀)ﾉ"],
@@ -197,51 +281,112 @@ function enrichCatTone(
   const leanOption = toward === "option2" ? data.option2 : data.option1
 
   if (lang === "en") {
-    // Keep English natural while adding a subtle cat persona.
-    const ensurePurr = (text: string, fallback: string) =>
-      /meow|purr|paw/i.test(text) ? text : `${text} ${fallback}`
+    const hasMeow = (s: string) => /meow|purr|paw/i.test(s)
+    const ensurePurr = (text: string, fallbacks: string[]) => {
+      if (hasMeow(text)) return text
+      const fb = fallbacks[Math.floor(Math.random() * fallbacks.length)]
+      const r = Math.random()
+      if (r < 0.4) return `${text} ${fb}`
+      if (r < 0.75) return `${fb} ${text}`
+      const dot = text.search(/\.\s/)
+      if (dot === -1) return `${text} ${fb}`
+      return `${text.slice(0, dot + 2)}${fb} ${text.slice(dot + 2)}`
+    }
 
-    const emotion = question ? detectEmotionHint(question) : "neutral"
+    const weaveEmotionEn = (emo: string, base: string) => {
+      const e = emo.trimEnd()
+      if (!e) return base
+      const r = Math.random()
+      if (r < 0.34) return `${e}${base}`
+      if (r < 0.67) return `${base} ${e}`
+      const dot = base.indexOf(".")
+      if (dot === -1) return `${e}${base}`
+      return `${base.slice(0, dot + 1)} ${e}${base.slice(dot + 1)}`
+    }
+
+    const emotion = resolveEmotionTone(data.emotionTone, question)
     const emotionPhrase =
       emotion === "sad"
-        ? `Meow—hang in there ${pickKaomoji(KAOMOJI_EN.sad)} `
+        ? `Hang in there ${pickKaomoji(KAOMOJI_EN.sad)} `
         : emotion === "achieve"
-          ? `Meow, congrats ${pickKaomoji(KAOMOJI_EN.achieve)} `
+          ? `Congrats ${pickKaomoji(KAOMOJI_EN.achieve)} `
           : emotion === "confused"
-            ? `Meow, it's okay to feel tangled ${pickKaomoji(KAOMOJI_EN.confused)} `
+            ? `It's okay to feel tangled ${pickKaomoji(KAOMOJI_EN.confused)} `
             : emotion === "angry"
-              ? `Meow, take one slow breath first ${pickKaomoji(KAOMOJI_EN.angry)} `
+              ? `Take one slow breath first ${pickKaomoji(KAOMOJI_EN.angry)} `
               : emotion === "excited"
-                ? `Meow, love that energy ${pickKaomoji(KAOMOJI_EN.excited)} `
+                ? `Love that energy ${pickKaomoji(KAOMOJI_EN.excited)} `
                 : ""
+
+    const leanBase = `Decison Cat leans a little toward "${leanOption}". ${data.leaning}`
+    const leanWithMeow = hasMeow(leanBase)
+      ? leanBase
+      : Math.random() < 0.5
+        ? `Decison Cat leans a little toward "${leanOption}", meow. ${data.leaning}`
+        : `Meow—Decison Cat leans a little toward "${leanOption}". ${data.leaning}`
 
     return {
       ...data,
-      reasonA: ensurePurr(data.reasonA, "Meow, this side feels steadier and easier to start with!"),
-      reasonB: ensurePurr(data.reasonB, "Meow—this side looks exciting, though a bit less predictable!"),
+      reasonA: ensurePurr(data.reasonA, [
+        "This side feels steadier and easier to start with, meow.",
+        "Meow—this side feels steadier to start with.",
+        "Steadier side to start, meow.",
+      ]),
+      reasonB: ensurePurr(data.reasonB, [
+        "This side looks exciting, though a bit less predictable—meow.",
+        "Meow—exciting side, a bit less predictable.",
+        "Exciting option here, meow.",
+      ]),
       leaning: ensurePurr(
-        `${emotionPhrase}Decison Cat leans a little toward "${leanOption}". ${data.leaning}`,
-        "Meow, this side is the better starting point!"
+        weaveEmotionEn(emotionPhrase, leanWithMeow),
+        ["This side is the better starting point, meow.", "Meow—good starting point here."]
       ),
     }
   }
 
-  const emotion = question ? detectEmotionHint(question) : "neutral"
+  const emotion = resolveEmotionTone(data.emotionTone, question)
   const emotionPhrase =
     emotion === "sad"
-      ? `小猫抱抱 ${pickKaomoji(KAOMOJI_ZH.sad)}，`
+      ? `小猫抱抱 ${pickKaomoji(KAOMOJI_ZH.sad)} `
       : emotion === "achieve"
-        ? `小猫悄悄鼓掌 ${pickKaomoji(KAOMOJI_ZH.achieve)}，`
+        ? `小猫悄悄鼓掌 ${pickKaomoji(KAOMOJI_ZH.achieve)} `
         : emotion === "confused"
-          ? `小猫挠挠头 ${pickKaomoji(KAOMOJI_ZH.confused)}，懂这种乱糟糟的感觉，`
+          ? `小猫挠挠头 ${pickKaomoji(KAOMOJI_ZH.confused)}，懂这种乱糟糟的感觉 `
           : emotion === "angry"
-            ? `小猫先陪你缓一口气 ${pickKaomoji(KAOMOJI_ZH.angry)}，`
+            ? `小猫先陪你缓一口气 ${pickKaomoji(KAOMOJI_ZH.angry)} `
             : emotion === "excited"
-              ? `小猫也有点兴奋起来了 ${pickKaomoji(KAOMOJI_ZH.excited)}，`
+              ? `小猫也有点兴奋起来了 ${pickKaomoji(KAOMOJI_ZH.excited)} `
               : ""
 
   const hasMiao = (s: string) => s.includes("喵")
-  const addMiaoFlavor = (s: string, phrase: string) => (hasMiao(s) ? s : `${phrase}${s}`)
+  /** 喵嵌进句子里，避免固定「喵，…」开头 */
+  const weaveMiaoReason = (s: string) => {
+    if (hasMiao(s)) return s
+    const r = Math.random()
+    if (r < 0.34) return `喵～${s}`
+    if (r < 0.67) return `${s}喵`
+    return `小猫想了想${s}喵`
+  }
+  const weaveMiaoLean = (leanOpt: string, tail: string) => {
+    const core = `小猫更偏向「${leanOpt}」。${tail}`
+    if (hasMiao(core)) return core
+    const r = Math.random()
+    if (r < 0.34) return `小猫更偏向「${leanOpt}」喵。${tail}`
+    if (r < 0.67) return `喵～小猫更偏向「${leanOpt}」。${tail}`
+    return `小猫心里稍微偏向「${leanOpt}」喵。${tail}`
+  }
+  /** 情绪可出现在句首、句末或第一句之后 */
+  const weaveEmotionZh = (emo: string, base: string) => {
+    const e = emo.trimEnd()
+    if (!e) return base
+    const r = Math.random()
+    if (r < 0.34) return `${e}${base}`
+    if (r < 0.67) return `${base}${e}`
+    const dot = base.indexOf("。")
+    if (dot === -1) return `${e}${base}`
+    return `${base.slice(0, dot + 1)}${e}${base.slice(dot + 1)}`
+  }
+
   const banPhrases = [/轻轻推一把/g, /轻轻用尾巴点点这边/g, /尾巴点点这边/g]
   const sanitize = (s: string) => {
     let out = s
@@ -249,18 +394,17 @@ function enrichCatTone(
     return out
   }
 
-  // 让三段中至少两段出现“喵”，但不过度堆叠
   let reasonA = sanitize(data.reasonA)
   let reasonB = sanitize(data.reasonB)
   let leaning = sanitize(data.leaning)
 
-  reasonA = addMiaoFlavor(reasonA, "喵，小猫想了想，")
-  leaning = `${emotionPhrase}喵！小猫更偏向「${leanOption}」。${leaning}`
+  reasonA = weaveMiaoReason(reasonA)
+  leaning = weaveEmotionZh(emotionPhrase, weaveMiaoLean(leanOption, leaning))
   leaning = ensureZhLeaningEndingNatural(leaning)
 
   const miaoCount = [reasonA, reasonB, leaning].filter(hasMiao).length
   if (miaoCount < 2) {
-    reasonB = addMiaoFlavor(reasonB, "喵呜，另一边也不差，")
+    reasonB = weaveMiaoReason(reasonB)
   }
 
   return {
@@ -296,6 +440,8 @@ function normalizePayload(data: unknown): Record<string, string> | null {
     if (d.leanToward === "option1" || d.leanToward === "option2") {
       leanToward = d.leanToward
     }
+    const emotionTone =
+      typeof d.emotionTone === "string" && d.emotionTone.trim() !== "" ? d.emotionTone.trim() : undefined
     return {
       mode: "decision",
       option1: d.option1 as string,
@@ -304,6 +450,7 @@ function normalizePayload(data: unknown): Record<string, string> | null {
       reasonB: d.reasonB as string,
       leaning: d.leaning as string,
       ...(leanToward ? { leanToward } : {}),
+      ...(emotionTone ? { emotionTone } : {}),
     }
   }
 
@@ -332,9 +479,13 @@ function hasPlaceholderLeak(data: Record<string, string>): boolean {
   })
 }
 
-function stripLeanTowardForResponse(data: Record<string, string>): Record<string, string> {
+/** 不向客户端暴露模型内部字段 */
+function stripInternalFieldsForResponse(data: Record<string, string>): Record<string, string> {
   if (data.mode !== "decision") return data
-  const { leanToward: _lt, ...rest } = data as Record<string, string> & { leanToward?: string }
+  const { leanToward: _lt, emotionTone: _et, ...rest } = data as Record<string, string> & {
+    leanToward?: string
+    emotionTone?: string
+  }
   return rest as Record<string, string>
 }
 
@@ -345,8 +496,8 @@ async function callDeepSeek(question: string, lang: "zh" | "en") {
       role: "system" as const,
       content:
         lang === "en"
-          ? "uiLang=en. All user-facing strings in JSON (options, reasons, leaning, invalid messages) must be English only, regardless of the user's input language. Include leanToward as exactly option1 or option2."
-          : "uiLang=zh。JSON 里所有面向用户的字符串（选项、理由、倾向、invalid 的 message）必须全部是中文，与用户输入语种无关。leanToward 必须是 option1 或 option2 之一。",
+          ? "uiLang=en. All user-facing strings in JSON (options, reasons, leaning, invalid messages) must be English only, regardless of the user's input language. Include leanToward as exactly option1 or option2. Include emotionTone as one of: sad, achieve, confused, angry, excited, neutral (English keys only)."
+          : "uiLang=zh。JSON 里所有面向用户的字符串（选项、理由、倾向、invalid 的 message）必须全部是中文，与用户输入语种无关。leanToward 必须是 option1 或 option2 之一。emotionTone 必须是 sad、achieve、confused、angry、excited、neutral 之一（键名固定英文小写）。",
     },
     { role: "user" as const, content: question },
   ]
@@ -370,7 +521,7 @@ async function callDeepSeek(question: string, lang: "zh" | "en") {
         const sanitized = sanitizeDecisionPlaceholders(normalized, lang)
         if (hasPlaceholderLeak(sanitized)) throw new Error("Template placeholder still leaked in output")
 
-        return stripLeanTowardForResponse(enrichCatTone(sanitized, lang, question))
+        return stripInternalFieldsForResponse(enrichCatTone(sanitized, lang, question))
       } catch (e) {
         lastError = e
       }
@@ -386,16 +537,18 @@ async function coerceTooFewToDecision(question: string, lang: "zh" | "en") {
           "You are a smart cat advisor.",
           "The user gave a single-direction dilemma. Convert it into a valid binary decision.",
           "Return strict JSON only:",
-          `{ "mode":"decision","option1":"...","option2":"...","reasonA":"...","reasonB":"...","leaning":"..." }`,
+          `{ "mode":"decision","option1":"...","option2":"...","reasonA":"...","reasonB":"...","leaning":"...","leanToward":"option1 or option2","emotionTone":"sad|achieve|confused|angry|excited|neutral" }`,
           "Tone: gentle, slightly playful cat persona, not preachy.",
+          "emotionTone: infer the user's emotional situation from their message.",
           "Keep response in English.",
         ].join("\n")
       : [
           "你是一只聪明的小猫顾问。",
           "用户只给了一个方向，请把它自然扩展成一个可执行的二选一（如做/不做、去/不去、继续/暂停）。",
           "只返回严格 JSON：",
-          `{ "mode":"decision","option1":"...","option2":"...","reasonA":"...","reasonB":"...","leaning":"..." }`,
+          `{ "mode":"decision","option1":"...","option2":"...","reasonA":"...","reasonB":"...","leaning":"...","leanToward":"option1 或 option2","emotionTone":"sad|achieve|confused|angry|excited|neutral" }`,
           "语气：温和、有点猫感、略活泼但不说教。",
+          "emotionTone：根据用户处境从六种里选一项（键名固定英文小写）。",
           "必须使用中文。",
         ].join("\n")
 
@@ -475,7 +628,7 @@ export async function POST(request: Request) {
     if (data.mode === "invalid" && data.invalidType === "too_few") {
       const coerced = await coerceTooFewToDecision(question, uiLang)
       const sanitized = sanitizeDecisionPlaceholders(coerced, uiLang)
-      return Response.json(stripLeanTowardForResponse(enrichCatTone(sanitized, uiLang, question)))
+      return Response.json(stripInternalFieldsForResponse(enrichCatTone(sanitized, uiLang, question)))
     }
     return Response.json(data)
   } catch (e) {
